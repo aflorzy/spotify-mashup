@@ -1,51 +1,69 @@
-// Typed wrappers for Spotify REST API endpoints.
-// Implemented by: feature/services agent
 import type {
-  SpotifySearchResult,
-  SpotifyPlaylist,
-  SpotifyPlaylistTracksResult,
-  SpotifyAudioFeatures,
-  SpotifyAudioAnalysis,
-  SpotifyUserProfile,
+  SpotifySearchResult, SpotifyPlaylist, SpotifyPlaylistTracksResult,
+  SpotifyAudioFeatures, SpotifyAudioAnalysis, SpotifyUserProfile,
 } from '../../types/spotify';
 
+const BASE = 'https://api.spotify.com/v1';
+
+async function apiFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Spotify API ${path} → ${res.status}: ${text}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
 export async function searchTracks(query: string, token: string, limit = 20): Promise<SpotifySearchResult> {
-  throw new Error(`Not implemented: ${query} ${token} ${limit}`);
+  return apiFetch<SpotifySearchResult>(`/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`, token);
 }
 
 export async function getUserPlaylists(token: string): Promise<SpotifyPlaylist[]> {
-  throw new Error(`Not implemented: ${token}`);
+  const results: SpotifyPlaylist[] = [];
+  let url: string | null = `/me/playlists?limit=50`;
+  while (url) {
+    const page = await apiFetch<{ items: SpotifyPlaylist[]; next: string | null }>(url, token);
+    results.push(...page.items);
+    url = page.next ? page.next.replace(BASE, '') : null;
+  }
+  return results;
 }
 
 export async function getPlaylistTracks(playlistId: string, token: string): Promise<SpotifyPlaylistTracksResult> {
-  throw new Error(`Not implemented: ${playlistId} ${token}`);
+  return apiFetch<SpotifyPlaylistTracksResult>(`/playlists/${playlistId}/tracks?limit=100`, token);
 }
 
 export async function getAudioFeatures(trackId: string, token: string): Promise<SpotifyAudioFeatures> {
-  throw new Error(`Not implemented: ${trackId} ${token}`);
+  return apiFetch<SpotifyAudioFeatures>(`/audio-features/${trackId}`, token);
 }
 
 export async function getAudioAnalysis(trackId: string, token: string): Promise<SpotifyAudioAnalysis> {
-  throw new Error(`Not implemented: ${trackId} ${token}`);
+  return apiFetch<SpotifyAudioAnalysis>(`/audio-analysis/${trackId}`, token);
 }
 
 export async function getUserProfile(token: string): Promise<SpotifyUserProfile> {
-  throw new Error(`Not implemented: ${token}`);
+  return apiFetch<SpotifyUserProfile>(`/me`, token);
 }
 
-export async function startPlayback(
-  deviceId: string,
-  uris: string[],
-  positionMs: number,
-  token: string,
-): Promise<void> {
-  throw new Error(`Not implemented: ${deviceId} ${uris} ${positionMs} ${token}`);
+export async function startPlayback(deviceId: string, uris: string[], positionMs: number, token: string): Promise<void> {
+  return apiFetch<void>(`/me/player/play?device_id=${deviceId}`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ uris, position_ms: positionMs }),
+  });
 }
 
 export async function pausePlayback(deviceId: string, token: string): Promise<void> {
-  throw new Error(`Not implemented: ${deviceId} ${token}`);
+  return apiFetch<void>(`/me/player/pause?device_id=${deviceId}`, token, { method: 'PUT' });
 }
 
 export async function seekPlayback(deviceId: string, positionMs: number, token: string): Promise<void> {
-  throw new Error(`Not implemented: ${deviceId} ${positionMs} ${token}`);
+  return apiFetch<void>(`/me/player/seek?device_id=${deviceId}&position_ms=${positionMs}`, token, { method: 'PUT' });
 }

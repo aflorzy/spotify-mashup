@@ -1,8 +1,14 @@
-// Spotify Web Playback SDK initialization and player factory.
-// Implemented by: feature/services agent
+let sdkReadyResolve: (() => void) | null = null;
+
+export const sdkReadyPromise = new Promise<void>((resolve) => {
+  sdkReadyResolve = resolve;
+});
 
 export function initSdk(onReady: () => void): void {
-  throw new Error(`Not implemented: ${onReady}`);
+  window.onSpotifyWebPlaybackSDKReady = () => {
+    sdkReadyResolve?.();
+    onReady();
+  };
 }
 
 export function createPlayer(
@@ -10,5 +16,5 @@ export function createPlayer(
   getToken: (cb: (token: string) => void) => void,
   volume = 1,
 ): Spotify.Player {
-  throw new Error(`Not implemented: ${name} ${getToken} ${volume}`);
+  return new window.Spotify.Player({ name, getOAuthToken: getToken, volume });
 }

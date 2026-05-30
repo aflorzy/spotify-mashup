@@ -1,10 +1,19 @@
-// IndexedDB waveform cache — avoids repeated Audio Analysis API calls.
-// Implemented by: feature/services agent
+import { openDB } from 'idb';
+
+const DB_NAME = 'mashup-db';
+const DB_VERSION = 1;
+
+async function getDb() {
+  return openDB(DB_NAME, DB_VERSION);
+}
 
 export async function getCachedWaveform(spotifyTrackId: string): Promise<number[] | undefined> {
-  throw new Error(`Not implemented: ${spotifyTrackId}`);
+  const db = await getDb();
+  const record = await db.get('waveforms', spotifyTrackId);
+  return record?.waveform;
 }
 
 export async function setCachedWaveform(spotifyTrackId: string, waveform: number[]): Promise<void> {
-  throw new Error(`Not implemented: ${spotifyTrackId} ${waveform.length}`);
+  const db = await getDb();
+  await db.put('waveforms', { spotifyTrackId, waveform });
 }
