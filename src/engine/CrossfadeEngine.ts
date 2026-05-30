@@ -204,7 +204,7 @@ export class CrossfadeEngine {
     }
   }
 
-  private async completeCrossfade(oldActivePlayer: Spotify.Player): Promise<void> {
+  private async completeCrossfade(oldActivePlayer: ISpotifyPlayer): Promise<void> {
     // Pause and mute old active player
     await oldActivePlayer.pause().catch(() => {});
     await oldActivePlayer.setVolume(0).catch(() => {});

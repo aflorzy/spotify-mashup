@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { startPlayback, pausePlayback } from '../../services/spotify/api';
 import { getValidToken } from '../../services/spotify/auth';
+import { usePreviewPlayer } from '../../contexts/PreviewPlayerContext';
 
 interface TransitionPreviewButtonProps {
   trackId: string;
@@ -20,23 +21,35 @@ export default function TransitionPreviewButton({
   crossfadeOutMs,
 }: TransitionPreviewButtonProps) {
   const accountA = useAppStore((s) => s.accountA);
+  const { deviceId, ready } = usePreviewPlayer();
+
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear auto-stop timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
+    };
+  }, []);
 
   const seekMs = Math.max(0, endMs - crossfadeOutMs - 2000);
 
   const handleClick = useCallback(async () => {
-    if (!accountA?.deviceId) {
-      setError('No active player');
-      return;
-    }
+    if (!accountA || !deviceId) return;
 
     setError(null);
 
     if (playing) {
+      // Pause and clear auto-stop timer
+      if (autoStopTimerRef.current) {
+        clearTimeout(autoStopTimerRef.current);
+        autoStopTimerRef.current = null;
+      }
       try {
         const token = await getValidToken(accountA);
-        await pausePlayback(accountA.deviceId, token);
+        await pausePlayback(deviceId, token);
       } catch {
         // best-effort stop
       }
@@ -46,17 +59,50 @@ export default function TransitionPreviewButton({
 
     try {
       const token = await getValidToken(accountA);
-      await startPlayback(accountA.deviceId, [spotifyUri], seekMs, token);
+      await startPlayback(deviceId, [spotifyUri], seekMs, token);
       setPlaying(true);
 
-      // Auto-stop indicator after ~8s (crossfade preview window)
-      setTimeout(() => setPlaying(false), 8000);
+      // Auto-stop the playing indicator after the crossfade window + 4s buffer
+      if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = setTimeout(() => {
+        setPlaying(false);
+      }, crossfadeOutMs + 4000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Playback failed');
     }
-  }, [accountA, spotifyUri, seekMs, playing]);
+  }, [accountA, deviceId, spotifyUri, seekMs, playing, crossfadeOutMs]);
 
-  if (!accountA) return null;
+  // --- Render states ---
+
+  if (!accountA) {
+    return (
+      <div className="flex flex-col gap-1">
+        <button
+          disabled
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-gray-800 text-gray-500 cursor-not-allowed"
+          title="Connect Spotify to preview transitions"
+        >
+          <span>▶</span>
+          <span>Connect Spotify to preview</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (!ready || !deviceId) {
+    return (
+      <div className="flex flex-col gap-1">
+        <button
+          disabled
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-gray-800 text-gray-500 cursor-not-allowed"
+          title="Waiting for Spotify player to connect"
+        >
+          <span className="inline-block w-3 h-3 rounded-full border-2 border-gray-500 border-t-green-400 animate-spin" />
+          <span>Player connecting…</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1">

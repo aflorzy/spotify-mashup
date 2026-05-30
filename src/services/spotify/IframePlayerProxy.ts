@@ -97,12 +97,13 @@ export class IframePlayerProxy {
   addListener(event: 'player_state_changed', cb: (state: Spotify.PlaybackState | null) => void): boolean;
   addListener(event: 'ready', cb: (data: { deviceId: string }) => void): boolean;
   addListener(event: 'not_ready', cb: () => void): boolean;
-  addListener(event: string, cb: (...args: unknown[]) => void): boolean;
-  addListener(event: string, cb: (...args: unknown[]) => void): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addListener(event: string, cb: (...args: any[]) => void): boolean {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(cb);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.listeners.get(event)!.add(cb as (...args: unknown[]) => void);
     return true;
   }
 

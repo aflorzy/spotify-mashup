@@ -1,7 +1,11 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MixTrack } from '../../types/mix';
 import { useMixStore } from '../../store/useMixStore';
 import { useWaveform } from '../../hooks/useWaveform';
+import { useAppStore } from '../../store/useAppStore';
+import { usePreviewPlayer } from '../../contexts/PreviewPlayerContext';
+import { startPlayback } from '../../services/spotify/api';
+import { getValidToken } from '../../services/spotify/auth';
 import { msToDisplay } from '../../utils/time';
 import Waveform from './Waveform';
 import CrossfadeOverlapIndicator from './CrossfadeOverlapIndicator';
@@ -16,8 +20,13 @@ interface MixEditorStripProps {
   nextTrack?: MixTrack;
 }
 
+const PLAYHEAD_POLL_MS = 250;
+const END_AUDITION_DEBOUNCE_MS = 600;
+
 export default function MixEditorStrip({ track, index, isLast, nextTrack }: MixEditorStripProps) {
   const updateTrack = useMixStore((s) => s.updateTrack);
+  const accountA = useAppStore((s) => s.accountA);
+  const { proxy, deviceId, ready } = usePreviewPlayer();
   const { waveform, loading: waveformLoading } = useWaveform(track.spotifyTrackId);
 
   // Persist waveform data once loaded
@@ -28,6 +37,107 @@ export default function MixEditorStrip({ track, index, isLast, nextTrack }: MixE
   }, [waveform, track.id, track.waveform.length, updateTrack]);
 
   const displayWaveform = track.waveform.length > 0 ? track.waveform : waveform;
+
+  // -------------------------------------------------------------------------
+  // Playhead polling — reads position from the proxy every 250 ms
+  // -------------------------------------------------------------------------
+  const [playheadMs, setPlayheadMs] = useState<number | undefined>(undefined);
+  const playheadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!proxy) {
+      setPlayheadMs(undefined);
+      return;
+    }
+
+    playheadIntervalRef.current = setInterval(async () => {
+      const state = await proxy.getCurrentState();
+      if (state) {
+        setPlayheadMs(state.position);
+      } else {
+        setPlayheadMs(undefined);
+      }
+    }, PLAYHEAD_POLL_MS);
+
+    return () => {
+      if (playheadIntervalRef.current) {
+        clearInterval(playheadIntervalRef.current);
+        playheadIntervalRef.current = null;
+      }
+    };
+  }, [proxy]);
+
+  // -------------------------------------------------------------------------
+  // Click-to-seek handler
+  // When something is playing: restarts playback from the clicked position.
+  // When paused/stopped: just moves the visual playhead indicator.
+  // -------------------------------------------------------------------------
+  const handleSeek = useCallback(
+    async (ms: number) => {
+      if (!accountA || !deviceId) return;
+      try {
+        if (proxy) {
+          const state = await proxy.getCurrentState();
+          if (state && !state.paused) {
+            const token = await getValidToken(accountA);
+            await startPlayback(deviceId, [track.spotifyUri], Math.round(ms), token);
+            return;
+          }
+        }
+        // Not playing — update the local playhead so user sees position
+        setPlayheadMs(Math.round(ms));
+      } catch {
+        // best-effort
+      }
+    },
+    [proxy, accountA, deviceId, track.spotifyUri],
+  );
+
+  // -------------------------------------------------------------------------
+  // Debounced end-handle audition — plays 3 s before the end point after the
+  // user settles the end handle. Only fires when the player is ready.
+  // -------------------------------------------------------------------------
+  const endAuditionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track whether this is the initial mount so we don't auto-play on load.
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+
+    if (!ready || !deviceId || !accountA) return;
+
+    if (endAuditionTimerRef.current) clearTimeout(endAuditionTimerRef.current);
+
+    endAuditionTimerRef.current = setTimeout(async () => {
+      try {
+        const token = await getValidToken(accountA);
+        const auditMs = Math.max(0, track.endMs - 3000);
+        await startPlayback(deviceId, [track.spotifyUri], auditMs, token);
+      } catch {
+        // best-effort
+      }
+    }, END_AUDITION_DEBOUNCE_MS);
+
+    return () => {
+      if (endAuditionTimerRef.current) {
+        clearTimeout(endAuditionTimerRef.current);
+        endAuditionTimerRef.current = null;
+      }
+    };
+    // Only fire when endMs changes, not on every re-render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [track.endMs]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (endAuditionTimerRef.current) clearTimeout(endAuditionTimerRef.current);
+      if (playheadIntervalRef.current) clearInterval(playheadIntervalRef.current);
+    };
+  }, []);
 
   const totalDuration = msToDisplay(track.durationMs);
 
@@ -70,6 +180,8 @@ export default function MixEditorStrip({ track, index, isLast, nextTrack }: MixE
             endMs={track.endMs}
             onStartChange={(ms) => updateTrack(track.id, { startMs: Math.round(ms) })}
             onEndChange={(ms) => updateTrack(track.id, { endMs: Math.round(ms) })}
+            onSeek={handleSeek}
+            playheadMs={playheadMs}
           />
         )}
       </div>
