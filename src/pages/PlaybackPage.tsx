@@ -20,7 +20,7 @@ export default function PlaybackPage() {
   const accountB = useAppStore((s) => s.accountB);
 
   const { player: playerA, ready: readyA } = useSpotifyPlayer('A');
-  const { player: playerB, ready: readyB } = useSpotifyPlayer('B');
+  const { player: playerB, ready: readyB } = useSpotifyPlayer('B', readyA);
 
   const engineRef = useRef<CrossfadeEngine | null>(null);
 

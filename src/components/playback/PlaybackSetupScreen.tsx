@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { buildAuthUrl, generateCodeVerifier } from '../../services/spotify/auth';
+import { buildAuthUrl, generateCodeVerifier, saveAccount } from '../../services/spotify/auth';
+import type { PlayerAccount } from '../../types/mix';
 import AccountStatusBadge from '../common/AccountStatusBadge';
 import Button from '../common/Button';
 
@@ -23,6 +24,8 @@ export default function PlaybackSetupScreen({
 }: PlaybackSetupScreenProps) {
   const accountA = useAppStore((s) => s.accountA);
   const accountB = useAppStore((s) => s.accountB);
+  const setAccountB = useAppStore((s) => s.setAccountB);
+  const popupRef = useRef<Window | null>(null);
   const [playerBActivated, setPlayerBActivated] = useState(false);
   const [starting, setStarting] = useState(false);
 
@@ -34,17 +37,38 @@ export default function PlaybackSetupScreen({
 
   async function handleConnectA() {
     const verifier = await generateCodeVerifier();
-    sessionStorage.setItem('mashup_auth_return', window.location.hash.replace('#', '') || '/');
+    sessionStorage.setItem('mashup_auth_return', window.location.pathname || '/');
     const url = await buildAuthUrl('A', verifier);
     window.location.href = url;
   }
 
   async function handleConnectB() {
     const verifier = await generateCodeVerifier();
-    sessionStorage.setItem('mashup_auth_return', window.location.hash.replace('#', '') || '/');
-    const url = await buildAuthUrl('B', verifier);
-    window.location.href = url;
+    const url = await buildAuthUrl('B', verifier, true);
+
+    const popup = window.open(url, 'spotify_auth_B', 'width=500,height=750,left=200,top=100');
+    if (!popup) {
+      // Popup blocked — fall back to full redirect
+      sessionStorage.setItem('mashup_auth_return', window.location.pathname || '/');
+      window.location.href = url;
+      return;
+    }
+    popupRef.current = popup;
   }
+
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== 'mashup_auth_complete') return;
+      const account = event.data.account as PlayerAccount;
+      setAccountB(account);
+      saveAccount(account);
+      popupRef.current?.close();
+      popupRef.current = null;
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [setAccountB]);
 
   function handleActivatePlayerB() {
     if (playerB) {

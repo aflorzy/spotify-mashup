@@ -4,7 +4,7 @@ import { createPlayer } from '../services/spotify/sdk';
 import { getValidToken } from '../services/spotify/auth';
 import type { PlayerAccount } from '../types/mix';
 
-export function useSpotifyPlayer(role: 'A' | 'B') {
+export function useSpotifyPlayer(role: 'A' | 'B', canConnect = true) {
   const account = useAppStore((s) => role === 'A' ? s.accountA : s.accountB);
   const setAccountA = useAppStore((s) => s.setAccountA);
   const setAccountB = useAppStore((s) => s.setAccountB);
@@ -15,7 +15,7 @@ export function useSpotifyPlayer(role: 'A' | 'B') {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!account || !sdkReady) return;
+    if (!account || !sdkReady || !canConnect) return;
 
     const player = createPlayer(
       `MashUp Player ${role}`,
@@ -48,7 +48,7 @@ export function useSpotifyPlayer(role: 'A' | 'B') {
       setReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, sdkReady, !!account]);
+  }, [role, sdkReady, !!account, canConnect]);
 
   return { player: playerRef.current, deviceId, ready };
 }

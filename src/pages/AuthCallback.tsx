@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { exchangeCodeForTokens, saveAccount } from '../services/spotify/auth';
 import { getUserProfile } from '../services/spotify/api';
@@ -10,8 +10,11 @@ export default function AuthCallback() {
   const navigate = useNavigate();
   const { setAccountA, setAccountB } = useAppStore();
   const [error, setError] = useState<string | null>(null);
+  const hasRun = useRef(false);
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     (async () => {
       try {
         const params = new URLSearchParams(window.location.search);
@@ -19,7 +22,7 @@ export default function AuthCallback() {
         const stateParam = params.get('state');
         if (!code || !stateParam) throw new Error('Missing code or state');
 
-        const state = JSON.parse(stateParam) as { role: 'A' | 'B'; nonce: string };
+        const state = JSON.parse(stateParam) as { role: 'A' | 'B'; nonce: string; popup?: boolean };
         const verifier = sessionStorage.getItem(`mashup_verifier_${state.role}`);
         if (!verifier) throw new Error('Missing code verifier — please try logging in again');
 
@@ -42,6 +45,16 @@ export default function AuthCallback() {
           deviceId: null,
           displayName: profile.display_name,
         };
+
+        // Popup flow: hand tokens back to the opener and close
+        if (state.popup && window.opener) {
+          window.opener.postMessage(
+            { type: 'mashup_auth_complete', account },
+            window.location.origin,
+          );
+          window.close();
+          return;
+        }
 
         if (state.role === 'A') {
           sessionStorage.setItem('mashup_user_id_A', profile.id);

@@ -6,24 +6,24 @@ import type {
 const BASE = 'https://api.spotify.com/v1';
 
 async function apiFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    ...(options.headers as Record<string, string>),
+  };
+  if (options.body) headers['Content-Type'] = 'application/json';
+  const res = await fetch(`${BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    console.error('Spotify API error', { method: options.method ?? 'GET', url: `${BASE}${path}`, status: res.status, body: text });
     throw new Error(`Spotify API ${path} → ${res.status}: ${text}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
 }
 
-export async function searchTracks(query: string, token: string, limit = 20): Promise<SpotifySearchResult> {
-  return apiFetch<SpotifySearchResult>(`/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`, token);
+export async function searchTracks(query: string, token: string, limit = 10): Promise<SpotifySearchResult> {
+  const params = new URLSearchParams({ q: query, type: 'track', limit: String(limit) });
+  return apiFetch<SpotifySearchResult>(`/search?${params}`, token);
 }
 
 export async function getUserPlaylists(token: string): Promise<SpotifyPlaylist[]> {

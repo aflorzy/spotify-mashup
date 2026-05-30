@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AppShell from './components/layout/AppShell';
 import HomePage from './pages/HomePage';
 import AuthCallback from './pages/AuthCallback';
@@ -9,7 +9,7 @@ import MixListPage from './pages/MixListPage';
 
 export default function Router() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/mix/:id/play" element={<PlaybackPage />} />
@@ -20,6 +20,6 @@ export default function Router() {
           <Route path="/mixes" element={<MixListPage />} />
         </Route>
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }

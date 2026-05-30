@@ -20,10 +20,10 @@ export async function generateCodeChallenge(verifier: string): Promise<string> {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-export async function buildAuthUrl(role: 'A' | 'B', verifier: string): Promise<string> {
+export async function buildAuthUrl(role: 'A' | 'B', verifier: string, popup = false): Promise<string> {
   const challenge = await generateCodeChallenge(verifier);
   const nonce = crypto.randomUUID();
-  const state = JSON.stringify({ role, nonce });
+  const state = JSON.stringify({ role, nonce, ...(popup && { popup: true }) });
   sessionStorage.setItem(`mashup_verifier_${role}`, verifier);
   sessionStorage.setItem(`mashup_state_${role}`, state);
   const params = new URLSearchParams({
@@ -34,6 +34,7 @@ export async function buildAuthUrl(role: 'A' | 'B', verifier: string): Promise<s
     code_challenge_method: 'S256',
     code_challenge: challenge,
     state,
+    ...(role === 'B' && { show_dialog: 'true' }),
   });
   return `https://accounts.spotify.com/authorize?${params}`;
 }

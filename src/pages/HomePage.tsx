@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import AccountStatusBadge from '../components/common/AccountStatusBadge';
 import Button from '../components/common/Button';
-import { buildAuthUrl, generateCodeVerifier } from '../services/spotify/auth';
+import { buildAuthUrl, generateCodeVerifier, clearAccount } from '../services/spotify/auth';
 
 const HOW_IT_WORKS = [
   {
@@ -26,6 +26,13 @@ export default function HomePage() {
   const navigate = useNavigate();
   const accountA = useAppStore((s) => s.accountA);
   const accountB = useAppStore((s) => s.accountB);
+  const clearAccounts = useAppStore((s) => s.clearAccounts);
+
+  function handleDisconnect() {
+    clearAccount('A');
+    clearAccount('B');
+    clearAccounts();
+  }
 
   async function handleConnectSpotify() {
     const verifier = await generateCodeVerifier();
@@ -61,13 +68,15 @@ export default function HomePage() {
         <AccountStatusBadge account={accountA} label="Player A" />
         <div className="hidden sm:block w-px h-8 bg-gray-700" />
         <AccountStatusBadge account={accountB} label="Player B" />
-        {!accountA && (
-          <>
-            <div className="hidden sm:block w-px h-8 bg-gray-700" />
-            <Button size="sm" variant="primary" onClick={handleConnectSpotify}>
-              Connect Spotify
-            </Button>
-          </>
+        <div className="hidden sm:block w-px h-8 bg-gray-700" />
+        {accountA ? (
+          <Button size="sm" variant="secondary" onClick={handleDisconnect}>
+            Disconnect
+          </Button>
+        ) : (
+          <Button size="sm" variant="primary" onClick={handleConnectSpotify}>
+            Connect Spotify
+          </Button>
         )}
       </div>
 
