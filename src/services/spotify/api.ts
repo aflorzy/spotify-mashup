@@ -30,7 +30,7 @@ export async function getUserPlaylists(token: string): Promise<SpotifyPlaylist[]
   const results: SpotifyPlaylist[] = [];
   let url: string | null = `/me/playlists?limit=50`;
   while (url) {
-    const page = await apiFetch<{ items: SpotifyPlaylist[]; next: string | null }>(url, token);
+    const page: { items: SpotifyPlaylist[]; next: string | null } = await apiFetch<{ items: SpotifyPlaylist[]; next: string | null }>(url, token);
     results.push(...page.items);
     url = page.next ? page.next.replace(BASE, '') : null;
   }

@@ -15,7 +15,13 @@ export default function App() {
     if (savedB) setAccountB(savedB);
 
     // Init Spotify SDK
-    initSdk(() => setSdkReady(true));
+    // Guard: if the SDK script was already loaded (e.g., from cache), the callback
+    // would have fired before this effect ran. Check window.Spotify directly.
+    if (window.Spotify) {
+      setSdkReady(true);
+    } else {
+      initSdk(() => setSdkReady(true));
+    }
   }, [setSdkReady, setAccountA, setAccountB]);
 
   return <Router />;

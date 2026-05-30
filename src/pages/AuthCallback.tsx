@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { exchangeCodeForTokens, saveAccount, loadAccount } from '../services/spotify/auth';
+import { exchangeCodeForTokens, saveAccount } from '../services/spotify/auth';
 import { getUserProfile } from '../services/spotify/api';
 import { useAppStore } from '../store/useAppStore';
 import type { PlayerAccount } from '../types/mix';
@@ -8,7 +8,7 @@ import Spinner from '../components/common/Spinner';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const { setAccountA, setAccountB, accountA } = useAppStore();
+  const { setAccountA, setAccountB } = useAppStore();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,7 +27,6 @@ export default function AuthCallback() {
         const profile = await getUserProfile(tokens.access_token);
 
         if (state.role === 'B') {
-          const _existingA = accountA || loadAccount('A');
           // We need to check user ID — store it with account A
           const storedAId = sessionStorage.getItem('mashup_user_id_A');
           if (storedAId && storedAId === profile.id) {
