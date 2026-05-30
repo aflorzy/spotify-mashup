@@ -1,11 +1,4 @@
-import { openDB } from 'idb';
-
-const DB_NAME = 'mashup-db';
-const DB_VERSION = 1;
-
-async function getDb() {
-  return openDB(DB_NAME, DB_VERSION);
-}
+import { getDb } from './db';
 
 export async function getCachedWaveform(spotifyTrackId: string): Promise<number[] | undefined> {
   const db = await getDb();

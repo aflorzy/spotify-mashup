@@ -34,14 +34,14 @@ export default function PlaybackSetupScreen({
 
   async function handleConnectA() {
     const verifier = await generateCodeVerifier();
-    sessionStorage.setItem('mashup_return_path', window.location.hash.replace('#', '') || '/');
+    sessionStorage.setItem('mashup_auth_return', window.location.hash.replace('#', '') || '/');
     const url = await buildAuthUrl('A', verifier);
     window.location.href = url;
   }
 
   async function handleConnectB() {
     const verifier = await generateCodeVerifier();
-    sessionStorage.setItem('mashup_return_path', window.location.hash.replace('#', '') || '/');
+    sessionStorage.setItem('mashup_auth_return', window.location.hash.replace('#', '') || '/');
     const url = await buildAuthUrl('B', verifier);
     window.location.href = url;
   }

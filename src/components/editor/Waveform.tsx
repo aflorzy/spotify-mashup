@@ -119,7 +119,7 @@ export default function Waveform({
   );
 
   const onStartTouchStart = useCallback(
-    (e: React.TouchEvent) => {
+    (_e: React.TouchEvent) => {
       if (!containerRef.current) return;
       activeHandle.current = 'start';
       startDragStart(containerRef.current);
@@ -153,7 +153,7 @@ export default function Waveform({
   );
 
   const onEndTouchStart = useCallback(
-    (e: React.TouchEvent) => {
+    (_e: React.TouchEvent) => {
       if (!containerRef.current) return;
       activeHandle.current = 'end';
       startDragEnd(containerRef.current);
