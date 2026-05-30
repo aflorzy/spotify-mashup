@@ -10,6 +10,10 @@ interface WaveformProps {
   endMs: number; // trim end
   onStartChange: (ms: number) => void;
   onEndChange: (ms: number) => void;
+  /** Called when the user clicks the canvas to seek to a position */
+  onSeek?: (ms: number) => void;
+  /** Current playback position in ms — renders a white playhead line */
+  playheadMs?: number;
 }
 
 const CANVAS_HEIGHT = 64;
@@ -21,6 +25,8 @@ export default function Waveform({
   endMs,
   onStartChange,
   onEndChange,
+  onSeek,
+  playheadMs,
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,7 +62,7 @@ export default function Waveform({
     }, []),
   });
 
-  // Draw waveform canvas
+  // Draw waveform canvas — includes playhead when playheadMs is defined
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -92,7 +98,20 @@ export default function Waveform({
 
       ctx.fillRect(x, y, barWidth, barH);
     });
-  }, [waveform, durationMs, startMs, endMs]);
+
+    // Draw playhead line
+    if (playheadMs !== undefined && playheadMs !== null && durationMs > 0) {
+      const playheadX = Math.round((playheadMs / durationMs) * width);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, height);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }, [waveform, durationMs, startMs, endMs, playheadMs]);
 
   useEffect(() => {
     drawCanvas();
@@ -175,6 +194,18 @@ export default function Waveform({
     [startMs, endMs, durationMs, onEndChange],
   );
 
+  // Click-to-seek on the canvas (ignore clicks that originate on handles)
+  const onCanvasClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!onSeek || !containerRef.current || activeHandle.current !== null) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const ms = Math.max(0, Math.min((x / rect.width) * durationMs, durationMs));
+      onSeek(ms);
+    },
+    [onSeek, durationMs],
+  );
+
   const startPos = durationMs > 0 ? startMs / durationMs : 0;
   const endPos = durationMs > 0 ? endMs / durationMs : 1;
 
@@ -188,7 +219,11 @@ export default function Waveform({
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full rounded"
-          style={{ height: CANVAS_HEIGHT }}
+          style={{
+            height: CANVAS_HEIGHT,
+            cursor: onSeek ? 'pointer' : 'default',
+          }}
+          onClick={onCanvasClick}
         />
         <TrimHandle
           position={startPos}
