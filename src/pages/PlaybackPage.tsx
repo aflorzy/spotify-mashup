@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMixStore } from '../store/useMixStore';
 import { useAppStore } from '../store/useAppStore';
 import { getMix } from '../services/storage/db';
-import { useSpotifyPlayer } from '../hooks/useSpotifyPlayer';
+import { useIframePlayer } from '../hooks/useIframePlayer';
 import { CrossfadeEngine } from '../engine/CrossfadeEngine';
 import type { EngineState } from '../types/engine';
 import PlaybackSetupScreen from '../components/playback/PlaybackSetupScreen';
@@ -19,8 +19,8 @@ export default function PlaybackPage() {
   const accountA = useAppStore((s) => s.accountA);
   const accountB = useAppStore((s) => s.accountB);
 
-  const { player: playerA, ready: readyA } = useSpotifyPlayer('A');
-  const { player: playerB, ready: readyB } = useSpotifyPlayer('B', readyA);
+  const { proxy: proxyA, ready: readyA } = useIframePlayer('A');
+  const { proxy: proxyB, ready: readyB } = useIframePlayer('B');
 
   const engineRef = useRef<CrossfadeEngine | null>(null);
 
@@ -67,9 +67,9 @@ export default function PlaybackPage() {
   }, []);
 
   async function handleStart() {
-    if (!playerA || !playerB || !accountA || !accountB || !currentMix) return;
+    if (!proxyA || !proxyB || !accountA || !accountB || !currentMix) return;
 
-    const engine = new CrossfadeEngine(playerA, playerB, accountA, accountB, {
+    const engine = new CrossfadeEngine(proxyA, proxyB, accountA, accountB, {
       onStateChange: (state) => setEngineState(state),
       onTrackChange: (index) => setCurrentIndex(index),
       onPosition: (pos) => setPosition(pos),
@@ -153,7 +153,7 @@ export default function PlaybackPage() {
         trackCount={currentMix.tracks.length}
         readyA={readyA}
         readyB={readyB}
-        playerB={playerB}
+        onActivatePlayerB={() => proxyB?.activate()}
       />
     );
   }

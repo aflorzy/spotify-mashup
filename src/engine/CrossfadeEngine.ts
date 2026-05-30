@@ -4,6 +4,15 @@ import { startPlayback } from '../services/spotify/api';
 import { getValidToken } from '../services/spotify/auth';
 import { easeInOutCubic } from './easing';
 
+export interface ISpotifyPlayer {
+  setVolume(volume: number): Promise<void>;
+  pause(): Promise<void>;
+  resume(): Promise<void>;
+  getCurrentState(): Promise<Spotify.PlaybackState | null>;
+  addListener(event: 'player_state_changed', cb: (state: Spotify.PlaybackState | null) => void): boolean;
+  removeListener(event: string, cb?: (...args: unknown[]) => void): boolean;
+}
+
 export interface EngineCallbacks {
   onStateChange: (state: EngineState) => void;
   onTrackChange: (index: number) => void;
@@ -14,8 +23,8 @@ export interface EngineCallbacks {
 }
 
 export class CrossfadeEngine {
-  private playerA: Spotify.Player;
-  private playerB: Spotify.Player;
+  private playerA: ISpotifyPlayer;
+  private playerB: ISpotifyPlayer;
   private accountA: PlayerAccount;
   private accountB: PlayerAccount;
 
@@ -32,8 +41,8 @@ export class CrossfadeEngine {
   private fadingGuard = false;
 
   constructor(
-    playerA: Spotify.Player,
-    playerB: Spotify.Player,
+    playerA: ISpotifyPlayer,
+    playerB: ISpotifyPlayer,
     accountA: PlayerAccount,
     accountB: PlayerAccount,
     callbacks: EngineCallbacks,

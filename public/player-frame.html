@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Spotify Player Frame</title>
+  <script>
+    (function () {
+      var player = null;
+      var latestToken = null;
+      var tokenCbs = [];
+      var sdkReady = false;
+      var pendingInit = null;
+
+      window.onSpotifyWebPlaybackSDKReady = function () {
+        sdkReady = true;
+        if (pendingInit) {
+          createPlayer(pendingInit);
+          pendingInit = null;
+        }
+      };
+
+      function createPlayer(data) {
+        player = new Spotify.Player({
+          name: data.name,
+          volume: data.volume != null ? data.volume : 1,
+          getOAuthToken: function (cb) {
+            if (latestToken) {
+              cb(latestToken);
+            } else {
+              tokenCbs.push(cb);
+              window.parent.postMessage({ type: 'token_request' }, '*');
+            }
+          }
+        });
+
+        player.addListener('ready', function (info) {
+          window.parent.postMessage({ type: 'ready', deviceId: info.device_id }, '*');
+        });
+
+        player.addListener('not_ready', function (info) {
+          window.parent.postMessage({ type: 'not_ready', deviceId: info.device_id }, '*');
+        });
+
+        player.addListener('player_state_changed', function (state) {
+          window.parent.postMessage({ type: 'player_state_changed', state: state }, '*');
+        });
+
+        player.connect();
+      }
+
+      window.addEventListener('message', function (event) {
+        if (event.source !== window.parent) return;
+        var msg = event.data || {};
+
+        switch (msg.type) {
+          case 'init':
+            latestToken = msg.token;
+            if (sdkReady) {
+              createPlayer(msg);
+            } else {
+              pendingInit = msg;
+            }
+            break;
+
+          case 'set_token':
+            latestToken = msg.token;
+            var pending = tokenCbs.splice(0);
+            for (var i = 0; i < pending.length; i++) {
+              pending[i](latestToken);
+            }
+            break;
+
+          case 'set_volume':
+            if (player) player.setVolume(msg.volume);
+            break;
+
+          case 'pause':
+            if (player) player.pause();
+            break;
+
+          case 'resume':
+            if (player) player.resume();
+            break;
+
+          case 'get_state':
+            if (player) {
+              player.getCurrentState().then(function (state) {
+                window.parent.postMessage({ type: 'state', reqId: msg.reqId, state: state }, '*');
+              });
+            } else {
+              window.parent.postMessage({ type: 'state', reqId: msg.reqId, state: null }, '*');
+            }
+            break;
+
+          case 'activate':
+            if (player) player.activateElement();
+            break;
+
+          case 'disconnect':
+            if (player) {
+              player.disconnect();
+              player = null;
+            }
+            break;
+        }
+      });
+    }());
+  </script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+</head>
+<body></body>
+</html>

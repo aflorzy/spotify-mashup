@@ -11,7 +11,7 @@ interface PlaybackSetupScreenProps {
   trackCount: number;
   readyA: boolean;
   readyB: boolean;
-  playerB: Spotify.Player | null;
+  onActivatePlayerB?: () => void;
 }
 
 export default function PlaybackSetupScreen({
@@ -20,7 +20,7 @@ export default function PlaybackSetupScreen({
   trackCount,
   readyA,
   readyB,
-  playerB,
+  onActivatePlayerB,
 }: PlaybackSetupScreenProps) {
   const accountA = useAppStore((s) => s.accountA);
   const accountB = useAppStore((s) => s.accountB);
@@ -71,9 +71,7 @@ export default function PlaybackSetupScreen({
   }, [setAccountB]);
 
   function handleActivatePlayerB() {
-    if (playerB) {
-      playerB.activateElement();
-    }
+    onActivatePlayerB?.();
     setPlayerBActivated(true);
   }
 
