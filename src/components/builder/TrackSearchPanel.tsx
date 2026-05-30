@@ -227,7 +227,7 @@ export default function TrackSearchPanel() {
           )}
 
           {!searchLoading && !searchError && query.trim() && searchResults.length === 0 && (
-            <p className="text-gray-600 text-sm text-center py-8">No results</p>
+            <p className="text-gray-500 text-sm text-center py-8">No tracks found for that search.</p>
           )}
 
           {!query.trim() && (

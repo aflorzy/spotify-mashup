@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
-import AccountStatusBadge from '../components/common/AccountStatusBadge';
 import Button from '../components/common/Button';
 import { buildAuthUrl, generateCodeVerifier, clearAccount } from '../services/spotify/auth';
+import type { PlayerAccount } from '../types/mix';
 
 const HOW_IT_WORKS = [
   {
@@ -22,23 +22,91 @@ const HOW_IT_WORKS = [
   },
 ];
 
+interface AccountCardProps {
+  role: 'A' | 'B';
+  account: PlayerAccount | null;
+  description: string;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}
+
+function AccountCard({ role, account, description, onConnect, onDisconnect }: AccountCardProps) {
+  const isConnected = account !== null;
+  const isReady = account?.deviceId !== null;
+
+  let dotColor: string;
+  let statusText: string;
+
+  if (!account) {
+    dotColor = 'bg-gray-600';
+    statusText = 'Not connected';
+  } else if (isReady) {
+    dotColor = 'bg-green-400';
+    statusText = account.displayName;
+  } else {
+    dotColor = 'bg-yellow-400';
+    statusText = `${account.displayName} (connecting…)`;
+  }
+
+  return (
+    <div className="flex-1 bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-3 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-mono font-bold text-green-400 shrink-0">
+            Player {role}
+          </span>
+          <span className="text-gray-600 text-xs shrink-0">·</span>
+          <span className="text-gray-500 text-xs truncate">{description}</span>
+        </div>
+        <span className={`inline-block h-2.5 w-2.5 rounded-full shrink-0 ${dotColor}`} />
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-gray-300 truncate">{statusText}</span>
+        {isConnected ? (
+          <Button size="sm" variant="ghost" onClick={onDisconnect} className="shrink-0 text-xs">
+            Disconnect
+          </Button>
+        ) : (
+          <Button size="sm" variant="primary" onClick={onConnect} className="shrink-0 text-xs">
+            Connect Spotify
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const accountA = useAppStore((s) => s.accountA);
   const accountB = useAppStore((s) => s.accountB);
-  const clearAccounts = useAppStore((s) => s.clearAccounts);
+  const setAccountA = useAppStore((s) => s.setAccountA);
+  const setAccountB = useAppStore((s) => s.setAccountB);
 
-  function handleDisconnect() {
-    clearAccount('A');
-    clearAccount('B');
-    clearAccounts();
-  }
-
-  async function handleConnectSpotify() {
+  async function handleConnectA() {
     const verifier = await generateCodeVerifier();
     const url = await buildAuthUrl('A', verifier);
     sessionStorage.setItem('mashup_auth_return', '/');
     window.location.href = url;
+  }
+
+  async function handleConnectB() {
+    const verifier = await generateCodeVerifier();
+    // popup: false since we redirect; show_dialog is already set in buildAuthUrl for role B
+    const url = await buildAuthUrl('B', verifier);
+    sessionStorage.setItem('mashup_auth_return', '/');
+    window.location.href = url;
+  }
+
+  function handleDisconnectA() {
+    clearAccount('A');
+    setAccountA(null);
+  }
+
+  function handleDisconnectB() {
+    clearAccount('B');
+    setAccountB(null);
   }
 
   return (
@@ -63,20 +131,36 @@ export default function HomePage() {
         </Button>
       </div>
 
-      {/* Account status strip */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-center bg-gray-900 rounded-xl p-4 mb-10 border border-gray-800">
-        <AccountStatusBadge account={accountA} label="Player A" />
-        <div className="hidden sm:block w-px h-8 bg-gray-700" />
-        <AccountStatusBadge account={accountB} label="Player B" />
-        <div className="hidden sm:block w-px h-8 bg-gray-700" />
-        {accountA ? (
-          <Button size="sm" variant="secondary" onClick={handleDisconnect}>
-            Disconnect
-          </Button>
-        ) : (
-          <Button size="sm" variant="primary" onClick={handleConnectSpotify}>
-            Connect Spotify
-          </Button>
+      {/* Account connection strip */}
+      <div className="mb-10">
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest text-center mb-3">
+          Spotify Accounts
+        </h2>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <AccountCard
+            role="A"
+            account={accountA}
+            description="Search &amp; build mixes"
+            onConnect={handleConnectA}
+            onDisconnect={handleDisconnectA}
+          />
+          <AccountCard
+            role="B"
+            account={accountB}
+            description="Crossfade playback"
+            onConnect={handleConnectB}
+            onDisconnect={handleDisconnectB}
+          />
+        </div>
+        {!accountA && (
+          <p className="text-gray-600 text-xs text-center mt-2">
+            Connect Account A to search tracks and build mixes. Account B is needed for crossfade playback.
+          </p>
+        )}
+        {accountA && !accountB && (
+          <p className="text-gray-600 text-xs text-center mt-2">
+            Connect Account B (a second Spotify account) to enable crossfade playback.
+          </p>
         )}
       </div>
 
