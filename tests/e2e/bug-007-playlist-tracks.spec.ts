@@ -62,7 +62,7 @@ base.describe('BUG-007 — scope version gate', () => {
     ).toBeVisible({ timeout: 5000 });
   });
 
-  base.test('fresh session with scopesVersion 2 loads without auth error banner', async ({ page }) => {
+  base.test('fresh session with scopesVersion 3 loads without auth error banner', async ({ page }) => {
     await page.addInitScript(() => {
       sessionStorage.setItem(
         'mashup_account_A',
@@ -73,7 +73,7 @@ base.describe('BUG-007 — scope version gate', () => {
           expiresAt: Date.now() + 3_500_000,
           deviceId: null,
           displayName: 'Fresh User',
-          scopesVersion: 2, // current — meets REQUIRED_SCOPES_VERSION
+          scopesVersion: 3, // current — meets REQUIRED_SCOPES_VERSION
         })
       );
     });

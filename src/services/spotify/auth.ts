@@ -5,7 +5,7 @@ export const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string;
 export const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI as string;
 export const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative';
 // Bump this when the required scope list grows so existing sessions re-authorize.
-export const REQUIRED_SCOPES_VERSION = 2;
+export const REQUIRED_SCOPES_VERSION = 3;
 
 export async function generateCodeVerifier(): Promise<string> {
   const array = new Uint8Array(96);
@@ -22,7 +22,7 @@ export async function generateCodeChallenge(verifier: string): Promise<string> {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
-export async function buildAuthUrl(role: 'A' | 'B', verifier: string, popup = false): Promise<string> {
+export async function buildAuthUrl(role: 'A' | 'B', verifier: string, popup = false, forceDialog = false): Promise<string> {
   const challenge = await generateCodeChallenge(verifier);
   const nonce = crypto.randomUUID();
   const state = JSON.stringify({ role, nonce, ...(popup && { popup: true }) });
@@ -36,7 +36,7 @@ export async function buildAuthUrl(role: 'A' | 'B', verifier: string, popup = fa
     code_challenge_method: 'S256',
     code_challenge: challenge,
     state,
-    ...(role === 'B' && { show_dialog: 'true' }),
+    ...((role === 'B' || forceDialog) && { show_dialog: 'true' }),
   });
   return `https://accounts.spotify.com/authorize?${params}`;
 }

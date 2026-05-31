@@ -39,7 +39,7 @@ const withAuth = base.extend<AuthFixtures>({
             expiresAt: expiresAtA,
             deviceId: null,
             displayName: nameA,
-            scopesVersion: 2,
+            scopesVersion: 3,
           })
         );
         sessionStorage.setItem(
@@ -51,7 +51,7 @@ const withAuth = base.extend<AuthFixtures>({
             expiresAt: expiresAtB,
             deviceId: null,
             displayName: nameB,
-            scopesVersion: 2,
+            scopesVersion: 3,
           })
         );
       },

@@ -83,10 +83,11 @@ export default function HomePage() {
   const accountB = useAppStore((s) => s.accountB);
   const setAccountA = useAppStore((s) => s.setAccountA);
   const setAccountB = useAppStore((s) => s.setAccountB);
+  const authError = useAppStore((s) => s.authError);
 
   async function handleConnectA() {
     const verifier = await generateCodeVerifier();
-    const url = await buildAuthUrl('A', verifier);
+    const url = await buildAuthUrl('A', verifier, false, !!authError);
     sessionStorage.setItem('mashup_auth_return', '/');
     window.location.href = url;
   }
@@ -94,7 +95,7 @@ export default function HomePage() {
   async function handleConnectB() {
     const verifier = await generateCodeVerifier();
     // popup: false since we redirect; show_dialog is already set in buildAuthUrl for role B
-    const url = await buildAuthUrl('B', verifier);
+    const url = await buildAuthUrl('B', verifier, false, !!authError);
     sessionStorage.setItem('mashup_auth_return', '/');
     window.location.href = url;
   }

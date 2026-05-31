@@ -28,6 +28,7 @@ export default function TransitionPreviewButton({
   const [apiConnecting, setApiConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingRef = useRef(false);
 
   // Clear auto-stop timer on unmount
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function TransitionPreviewButton({
     setError(null);
 
     if (playing) {
-      // Pause and clear auto-stop timer
+      // Pause branch — not guarded by pollingRef
       if (autoStopTimerRef.current) {
         clearTimeout(autoStopTimerRef.current);
         autoStopTimerRef.current = null;
@@ -60,6 +61,9 @@ export default function TransitionPreviewButton({
       return;
     }
 
+    // Start playing branch — single-flight guard prevents concurrent polling loops
+    if (pollingRef.current) return;
+    pollingRef.current = true;
     try {
       const token = await getValidToken(accountA);
       const liveDeviceId = await waitForDevice(proxy);
@@ -77,6 +81,8 @@ export default function TransitionPreviewButton({
     } catch (e) {
       setApiConnecting(false);
       setError(e instanceof Error ? e.message : 'Playback failed');
+    } finally {
+      pollingRef.current = false;
     }
   }, [accountA, proxy, spotifyUri, seekMs, playing, crossfadeOutMs]);
 
