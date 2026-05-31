@@ -17,11 +17,9 @@ export default function MixBuilderPage() {
   const [nameInput, setNameInput] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Create a new mix if none is loaded
+  // Always start fresh — this page is exclusively /mix/new
   useEffect(() => {
-    if (!currentMix) {
-      createMix('New Mix');
-    }
+    createMix('New Mix');
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save whenever the mix changes

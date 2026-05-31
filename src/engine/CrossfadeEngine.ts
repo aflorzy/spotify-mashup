@@ -2,7 +2,7 @@ import type { MixTrack, PlayerAccount } from '../types/mix';
 import type { EngineState } from '../types/engine';
 import { startPlayback } from '../services/spotify/api';
 import { getValidToken } from '../services/spotify/auth';
-import { waitForDevice } from '../services/spotify/playerUtils';
+import { waitForDevice, waitForDeviceVisible } from '../services/spotify/playerUtils';
 import type { IframePlayerProxy } from '../services/spotify/IframePlayerProxy';
 import { easeInOutCubic } from './easing';
 
@@ -102,15 +102,18 @@ export class CrossfadeEngine {
   ): Promise<void> {
     const token = await getValidToken(account);
     const deviceId = await waitForDevice(proxy);
+    // Gate on Spotify backend registration — SDK `ready` fires before the device
+    // appears in the REST API, causing 404s on immediate /play calls.
+    await waitForDeviceVisible(deviceId, token);
     try {
       await startPlayback(deviceId, uris, positionMs, token);
     } catch (e) {
       if (e instanceof Error && e.message.includes('404')) {
         this.callbacks.onReconnecting?.();
-        // Wait for the proxy to re-register after a device timeout
         await new Promise<void>((r) => setTimeout(r, 2000));
         const freshDeviceId = await waitForDevice(proxy, 15000);
         const freshToken = await getValidToken(account);
+        await waitForDeviceVisible(freshDeviceId, freshToken);
         await startPlayback(freshDeviceId, uris, positionMs, freshToken);
         this.callbacks.onReconnected?.();
       } else {

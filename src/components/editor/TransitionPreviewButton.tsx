@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { startPlayback, pausePlayback } from '../../services/spotify/api';
 import { getValidToken } from '../../services/spotify/auth';
-import { waitForDevice } from '../../services/spotify/playerUtils';
+import { waitForDevice, waitForDeviceVisible } from '../../services/spotify/playerUtils';
 import { usePreviewPlayer } from '../../contexts/PreviewPlayerContext';
 
 interface TransitionPreviewButtonProps {
@@ -25,6 +25,7 @@ export default function TransitionPreviewButton({
   const { deviceId, ready, proxy } = usePreviewPlayer();
 
   const [playing, setPlaying] = useState(false);
+  const [apiConnecting, setApiConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -62,6 +63,9 @@ export default function TransitionPreviewButton({
     try {
       const token = await getValidToken(accountA);
       const liveDeviceId = await waitForDevice(proxy);
+      setApiConnecting(true);
+      await waitForDeviceVisible(liveDeviceId, token);
+      setApiConnecting(false);
       await startPlayback(liveDeviceId, [spotifyUri], seekMs, token);
       setPlaying(true);
 
@@ -71,6 +75,7 @@ export default function TransitionPreviewButton({
         setPlaying(false);
       }, crossfadeOutMs + 4000);
     } catch (e) {
+      setApiConnecting(false);
       setError(e instanceof Error ? e.message : 'Playback failed');
     }
   }, [accountA, proxy, spotifyUri, seekMs, playing, crossfadeOutMs]);
@@ -102,6 +107,20 @@ export default function TransitionPreviewButton({
         >
           <span className="inline-block w-3 h-3 rounded-full border-2 border-gray-500 border-t-green-400 animate-spin" />
           <span>Player connecting…</span>
+        </button>
+      </div>
+    );
+  }
+
+  if (apiConnecting) {
+    return (
+      <div className="flex flex-col gap-1">
+        <button
+          disabled
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-gray-800 text-gray-500 cursor-not-allowed"
+        >
+          <span className="inline-block w-3 h-3 rounded-full border-2 border-gray-500 border-t-green-400 animate-spin" />
+          <span>Connecting player…</span>
         </button>
       </div>
     );

@@ -30,4 +30,5 @@ export interface PlayerAccount {
   expiresAt: number;
   deviceId: string | null;
   displayName: string;
+  scopesVersion?: number;
 }

@@ -53,7 +53,12 @@ export async function getUserProfile(token: string): Promise<SpotifyUserProfile>
   return apiFetch<SpotifyUserProfile>(`/me`, token);
 }
 
+export async function getPlayerDevices(token: string): Promise<{ devices: Array<{ id: string; name: string; is_active: boolean }> }> {
+  return apiFetch(`/me/player/devices`, token);
+}
+
 export async function startPlayback(deviceId: string, uris: string[], positionMs: number, token: string): Promise<void> {
+  console.debug('[MashUp] PUT /play → device:', deviceId, 'token:', token.slice(0, 10) + '…');
   return apiFetch<void>(`/me/player/play?device_id=${deviceId}`, token, {
     method: 'PUT',
     body: JSON.stringify({ uris, position_ms: positionMs }),

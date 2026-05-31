@@ -4,6 +4,8 @@ import { useAppStore } from '../../store/useAppStore';
 export const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string;
 export const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI as string;
 export const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative';
+// Bump this when the required scope list grows so existing sessions re-authorize.
+export const REQUIRED_SCOPES_VERSION = 2;
 
 export async function generateCodeVerifier(): Promise<string> {
   const array = new Uint8Array(96);
@@ -98,7 +100,10 @@ export async function getValidToken(account: PlayerAccount): Promise<string> {
 }
 
 export function saveAccount(account: PlayerAccount): void {
-  sessionStorage.setItem(`mashup_account_${account.role}`, JSON.stringify(account));
+  sessionStorage.setItem(
+    `mashup_account_${account.role}`,
+    JSON.stringify({ ...account, scopesVersion: REQUIRED_SCOPES_VERSION }),
+  );
 }
 
 export function loadAccount(role: 'A' | 'B'): PlayerAccount | null {
