@@ -7,6 +7,8 @@ interface AppState {
   setAccountA: (account: PlayerAccount | null) => void;
   setAccountB: (account: PlayerAccount | null) => void;
   clearAccounts: () => void;
+  authError: string | null;
+  setAuthError: (msg: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -15,4 +17,6 @@ export const useAppStore = create<AppState>((set) => ({
   setAccountA: (account) => set({ accountA: account }),
   setAccountB: (account) => set({ accountB: account }),
   clearAccounts: () => set({ accountA: null, accountB: null }),
+  authError: null,
+  setAuthError: (msg) => set({ authError: msg }),
 }));

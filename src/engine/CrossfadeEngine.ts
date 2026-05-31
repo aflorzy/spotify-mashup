@@ -2,6 +2,8 @@ import type { MixTrack, PlayerAccount } from '../types/mix';
 import type { EngineState } from '../types/engine';
 import { startPlayback } from '../services/spotify/api';
 import { getValidToken } from '../services/spotify/auth';
+import { waitForDevice } from '../services/spotify/playerUtils';
+import type { IframePlayerProxy } from '../services/spotify/IframePlayerProxy';
 import { easeInOutCubic } from './easing';
 
 export interface ISpotifyPlayer {
@@ -20,11 +22,15 @@ export interface EngineCallbacks {
   onFadeProgress: (progress: number) => void;
   onError: (message: string) => void;
   onComplete: () => void;
+  onReconnecting?: () => void;
+  onReconnected?: () => void;
 }
 
 export class CrossfadeEngine {
   private playerA: ISpotifyPlayer;
   private playerB: ISpotifyPlayer;
+  private proxyA: IframePlayerProxy;
+  private proxyB: IframePlayerProxy;
   private accountA: PlayerAccount;
   private accountB: PlayerAccount;
 
@@ -43,12 +49,16 @@ export class CrossfadeEngine {
   constructor(
     playerA: ISpotifyPlayer,
     playerB: ISpotifyPlayer,
+    proxyA: IframePlayerProxy,
+    proxyB: IframePlayerProxy,
     accountA: PlayerAccount,
     accountB: PlayerAccount,
     callbacks: EngineCallbacks,
   ) {
     this.playerA = playerA;
     this.playerB = playerB;
+    this.proxyA = proxyA;
+    this.proxyB = proxyB;
     this.accountA = accountA;
     this.accountB = accountB;
     this.callbacks = callbacks;
@@ -84,6 +94,31 @@ export class CrossfadeEngine {
     this.playerB.addListener('player_state_changed', handleState('B'));
   }
 
+  private async startPlaybackWithRetry(
+    proxy: IframePlayerProxy,
+    account: PlayerAccount,
+    uris: string[],
+    positionMs: number,
+  ): Promise<void> {
+    const token = await getValidToken(account);
+    const deviceId = await waitForDevice(proxy);
+    try {
+      await startPlayback(deviceId, uris, positionMs, token);
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('404')) {
+        this.callbacks.onReconnecting?.();
+        // Wait for the proxy to re-register after a device timeout
+        await new Promise<void>((r) => setTimeout(r, 2000));
+        const freshDeviceId = await waitForDevice(proxy, 15000);
+        const freshToken = await getValidToken(account);
+        await startPlayback(freshDeviceId, uris, positionMs, freshToken);
+        this.callbacks.onReconnected?.();
+      } else {
+        throw e;
+      }
+    }
+  }
+
   async start(tracks: MixTrack[]): Promise<void> {
     if (tracks.length === 0) {
       this.callbacks.onError('No tracks in mix');
@@ -97,8 +132,7 @@ export class CrossfadeEngine {
     try {
       // Load track 0 onto Player A, start playing from startMs
       const track0 = tracks[0];
-      const tokenA = await getValidToken(this.accountA);
-      await startPlayback(this.accountA.deviceId!, [track0.spotifyUri], track0.startMs, tokenA);
+      await this.startPlaybackWithRetry(this.proxyA, this.accountA, [track0.spotifyUri], track0.startMs);
       await this.playerA.setVolume(1);
       await this.playerB.setVolume(0);
 
@@ -174,9 +208,9 @@ export class CrossfadeEngine {
       // Resume the staged (pre-loaded, paused) player
       const stagedRole = this.activePlayer === 'A' ? 'B' : 'A';
       const stagedAccount = stagedRole === 'A' ? this.accountA : this.accountB;
-      const stagedToken = await getValidToken(stagedAccount);
+      const stagedProxy = stagedRole === 'A' ? this.proxyA : this.proxyB;
       const nextTrack = this.tracks[this.currentIndex + 1];
-      await startPlayback(stagedAccount.deviceId!, [nextTrack.spotifyUri], nextTrack.startMs, stagedToken);
+      await this.startPlaybackWithRetry(stagedProxy, stagedAccount, [nextTrack.spotifyUri], nextTrack.startMs);
 
       // Volume ramp: active → 0, staged → 1 over fadeDuration
       let elapsed = 0;
@@ -231,11 +265,11 @@ export class CrossfadeEngine {
 
   private async stageTrack(track: MixTrack, playerRole: 'A' | 'B'): Promise<void> {
     const account = playerRole === 'A' ? this.accountA : this.accountB;
+    const proxy = playerRole === 'A' ? this.proxyA : this.proxyB;
     const player = playerRole === 'A' ? this.playerA : this.playerB;
-    const token = await getValidToken(account);
 
     // Start playback (which loads + seeks the track on that device)
-    await startPlayback(account.deviceId!, [track.spotifyUri], track.startMs, token);
+    await this.startPlaybackWithRetry(proxy, account, [track.spotifyUri], track.startMs);
     // Immediately pause — track is now loaded, seeked, and silent
     await player.setVolume(0);
     await player.pause();

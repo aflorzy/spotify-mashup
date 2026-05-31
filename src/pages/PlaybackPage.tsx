@@ -31,6 +31,12 @@ export default function PlaybackPage() {
   const [started, setStarted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [playerDisconnected, setPlayerDisconnected] = useState(false);
+  const [reconnectFailed, setReconnectFailed] = useState(false);
+
+  const reconnectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectDeadlineRef = useRef<number>(0);
 
   // Load mix from DB if not already in store
   useEffect(() => {
@@ -63,13 +69,56 @@ export default function PlaybackPage() {
   useEffect(() => {
     return () => {
       engineRef.current?.destroy();
+      if (reconnectTimerRef.current) clearInterval(reconnectTimerRef.current);
     };
   }, []);
+
+  // Watch for player disconnect during active playback
+  useEffect(() => {
+    if (!started) return;
+
+    const disconnected = !readyA || !readyB;
+    if (disconnected && !playerDisconnected) {
+      setPlayerDisconnected(true);
+      setReconnectFailed(false);
+      engineRef.current?.pause?.();
+      reconnectDeadlineRef.current = Date.now() + 60_000;
+
+      reconnectTimerRef.current = setInterval(() => {
+        if (readyA && readyB) {
+          clearInterval(reconnectTimerRef.current!);
+          reconnectTimerRef.current = null;
+          setPlayerDisconnected(false);
+          engineRef.current?.resume?.();
+          return;
+        }
+        if (Date.now() >= reconnectDeadlineRef.current) {
+          clearInterval(reconnectTimerRef.current!);
+          reconnectTimerRef.current = null;
+          setReconnectFailed(true);
+        }
+      }, 5000);
+    } else if (!disconnected && playerDisconnected) {
+      if (reconnectTimerRef.current) {
+        clearInterval(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      setPlayerDisconnected(false);
+      engineRef.current?.resume?.();
+    }
+
+    return () => {
+      if (reconnectTimerRef.current) {
+        clearInterval(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+  }, [readyA, readyB, started]);
 
   async function handleStart() {
     if (!proxyA || !proxyB || !accountA || !accountB || !currentMix) return;
 
-    const engine = new CrossfadeEngine(proxyA, proxyB, accountA, accountB, {
+    const engine = new CrossfadeEngine(proxyA, proxyB, proxyA, proxyB, accountA, accountB, {
       onStateChange: (state) => setEngineState(state),
       onTrackChange: (index) => setCurrentIndex(index),
       onPosition: (pos) => setPosition(pos),
@@ -79,6 +128,8 @@ export default function PlaybackPage() {
         setStarted(false);
         setEngineState('stopped');
       },
+      onReconnecting: () => setReconnecting(true),
+      onReconnected: () => setReconnecting(false),
     });
 
     engineRef.current = engine;
@@ -93,6 +144,17 @@ export default function PlaybackPage() {
   function handleStop() {
     engineRef.current?.stop();
     setStarted(false);
+  }
+
+  function handleRestart() {
+    engineRef.current?.destroy();
+    engineRef.current = null;
+    setStarted(false);
+    setEngineState('idle');
+    setCurrentIndex(0);
+    setPosition(0);
+    setFadeProgress(0);
+    setError(null);
   }
 
   // Loading state
@@ -126,6 +188,9 @@ export default function PlaybackPage() {
           <h1 className="text-3xl font-bold text-white">Mix Complete</h1>
           <p className="text-gray-400">{currentMix.name} has finished.</p>
         </div>
+        <Button variant="secondary" size="lg" onClick={handleRestart}>
+          Restart mix
+        </Button>
         <Button variant="primary" size="lg" onClick={() => navigate('/mixes')}>
           Back to mixes
         </Button>
@@ -160,7 +225,43 @@ export default function PlaybackPage() {
 
   // Active playback
   return (
-    <DJView
+    <>
+      {reconnecting && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+          <span className="bg-yellow-900/80 text-yellow-300 text-sm px-4 py-2 rounded-full border border-yellow-700">
+            Reconnecting…
+          </span>
+        </div>
+      )}
+      {playerDisconnected && (
+        <div className="fixed inset-0 bg-black/80 z-40 flex flex-col items-center justify-center gap-6 px-6">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 max-w-sm w-full text-center flex flex-col gap-4">
+            {reconnectFailed ? (
+              <>
+                <h2 className="text-white font-bold text-xl">Could not reconnect</h2>
+                <p className="text-gray-400 text-sm">The Spotify player could not be re-established. Please reload the page to continue.</p>
+                <button
+                  className="w-full bg-green-600 hover:bg-green-500 text-white font-medium py-2.5 rounded-lg transition-colors"
+                  onClick={() => window.location.reload()}
+                >
+                  Reload page
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-white font-bold text-xl">Player disconnected</h2>
+                <p className="text-gray-400 text-sm">Reconnecting your Spotify player…</p>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-yellow-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="h-2 w-2 rounded-full bg-yellow-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="h-2 w-2 rounded-full bg-yellow-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      <DJView
       currentTrack={currentTrack}
       nextTrack={nextTrack}
       engineState={engineState}
@@ -171,5 +272,6 @@ export default function PlaybackPage() {
       onSkip={handleSkip}
       onStop={handleStop}
     />
+    </>
   );
 }

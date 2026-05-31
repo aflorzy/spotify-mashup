@@ -67,8 +67,8 @@ export default function MixBuilderPage() {
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-3.5rem)]">
       {/* Top bar */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="bg-gray-900 border-b border-gray-800 px-4 md:px-6 py-3 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           {editingName ? (
             <input
               ref={nameInputRef}
@@ -77,18 +77,18 @@ export default function MixBuilderPage() {
               onChange={(e) => setNameInput(e.target.value)}
               onBlur={commitName}
               onKeyDown={handleNameKeyDown}
-              className="bg-gray-800 border border-green-500 rounded-lg px-2 py-1 text-white font-semibold text-lg focus:outline-none"
+              className="bg-gray-800 border border-green-500 rounded-lg px-2 py-1 text-white font-semibold text-lg focus:outline-none min-w-0 w-full"
             />
           ) : (
             <button
               onClick={startEditName}
-              className="text-white font-semibold text-lg hover:text-green-400 transition-colors text-left"
+              className="text-white font-semibold text-lg hover:text-green-400 transition-colors text-left truncate"
               title="Click to rename"
             >
               {currentMix.name}
             </button>
           )}
-          <span className="text-gray-600 text-sm">
+          <span className="text-gray-600 text-sm shrink-0">
             {currentMix.tracks.length} {currentMix.tracks.length === 1 ? 'track' : 'tracks'}
           </span>
         </div>
@@ -106,7 +106,7 @@ export default function MixBuilderPage() {
       {/* Main layout: sidebar + track list */}
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         {/* Left sidebar */}
-        <aside className="w-full md:w-80 lg:w-96 shrink-0 border-b md:border-b-0 md:border-r border-gray-800 bg-gray-950 flex flex-col">
+        <aside className="w-full md:w-80 lg:w-96 shrink-0 border-b md:border-b-0 md:border-r border-gray-800 bg-gray-950 flex flex-col max-h-[50vh] md:max-h-none">
           <div className="flex-1 overflow-y-auto p-4">
             <TrackSearchPanel />
           </div>

@@ -65,6 +65,11 @@ export default function MixListPage() {
     }
   }
 
+  function handleDeleteWithConfirm(mix: Mix) {
+    if (!window.confirm(`Delete "${mix.name}"? This cannot be undone.`)) return;
+    handleDelete(mix.id);
+  }
+
   function handleImportClick() {
     setImportError(null);
     fileInputRef.current?.click();
@@ -216,7 +221,7 @@ export default function MixListPage() {
                     variant="danger"
                     size="sm"
                     disabled={deletingId === mix.id}
-                    onClick={() => handleDelete(mix.id)}
+                    onClick={() => handleDeleteWithConfirm(mix)}
                   >
                     {deletingId === mix.id ? 'Deleting…' : 'Delete'}
                   </Button>

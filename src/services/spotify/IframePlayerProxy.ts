@@ -6,6 +6,7 @@ export class IframePlayerProxy {
   private msgHandler: (event: MessageEvent) => void;
   private loaded = false;
   private sendQueue: object[] = [];
+  private _deviceId: string | null = null;
 
   constructor(getTokenFn: () => Promise<string>) {
     this.getTokenFn = getTokenFn;
@@ -33,7 +34,11 @@ export class IframePlayerProxy {
     const msg = event.data as Record<string, unknown>;
     const type = msg?.type;
 
-    if (type === 'ready' || type === 'not_ready') {
+    if (type === 'ready') {
+      this._deviceId = msg.deviceId as string;
+      this.emit(type, msg);
+    } else if (type === 'not_ready') {
+      this._deviceId = null;
       this.emit(type, msg);
     } else if (type === 'player_state_changed') {
       this.emit('player_state_changed', msg.state as Spotify.PlaybackState | null);
@@ -61,6 +66,10 @@ export class IframePlayerProxy {
     } else {
       this.sendQueue.push(msg);
     }
+  }
+
+  get deviceId(): string | null {
+    return this._deviceId;
   }
 
   init(name: string, token: string, volume = 1): void {
@@ -125,6 +134,7 @@ export class IframePlayerProxy {
     window.removeEventListener('message', this.msgHandler);
     this.iframe.remove();
     this.loaded = false;
+    this._deviceId = null;
     for (const resolve of this.pendingStates.values()) {
       resolve(null);
     }

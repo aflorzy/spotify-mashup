@@ -73,7 +73,16 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
 
 export async function getValidToken(account: PlayerAccount): Promise<string> {
   if (account.expiresAt - Date.now() < 60000) {
-    const { access_token, expires_in } = await refreshAccessToken(account.refreshToken);
+    let access_token: string;
+    let expires_in: number;
+    try {
+      ({ access_token, expires_in } = await refreshAccessToken(account.refreshToken));
+    } catch (e) {
+      useAppStore.getState().setAuthError(
+        'Reconnect your Spotify account — authorization expired or revoked.'
+      );
+      throw e;
+    }
     const updated: PlayerAccount = {
       ...account,
       accessToken: access_token,

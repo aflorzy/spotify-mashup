@@ -97,7 +97,7 @@ export default function TrackSearchPanel() {
       try {
         const token = await getValidToken(accountA);
         const result = await searchTracks(q, token);
-        setSearchResults(result.tracks.items);
+        setSearchResults(result?.tracks?.items ?? []);
       } catch (err) {
         setSearchError(err instanceof Error ? err.message : 'Search failed');
         setSearchResults([]);
@@ -227,7 +227,15 @@ export default function TrackSearchPanel() {
           )}
 
           {!searchLoading && !searchError && query.trim() && searchResults.length === 0 && (
-            <p className="text-gray-500 text-sm text-center py-8">No tracks found for that search.</p>
+            <div className="flex flex-col items-center gap-3 py-8">
+              <p className="text-gray-500 text-sm">No tracks found for "{query}"</p>
+              <button
+                onClick={() => doSearch(query)}
+                className="text-green-400 hover:text-green-300 text-sm transition-colors"
+              >
+                Try again
+              </button>
+            </div>
           )}
 
           {!query.trim() && (
@@ -269,7 +277,7 @@ export default function TrackSearchPanel() {
                   )}
                   <div className="min-w-0">
                     <p className="text-white text-sm font-medium truncate">{pl.name}</p>
-                    <p className="text-gray-500 text-xs">{pl.tracks.total} tracks</p>
+                    <p className="text-gray-500 text-xs">{pl.tracks?.total ?? 0} tracks</p>
                   </div>
                 </button>
               ))}

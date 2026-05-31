@@ -161,7 +161,7 @@ export default function MixEditorStrip({ track, index, isLast, nextTrack }: MixE
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <BpmBadge bpm={track.bpm} />
-          <span className="text-gray-400 text-sm font-mono">{totalDuration}</span>
+          <span className="hidden sm:block text-gray-400 text-sm font-mono">{totalDuration}</span>
         </div>
       </div>
 
@@ -173,16 +173,19 @@ export default function MixEditorStrip({ track, index, isLast, nextTrack }: MixE
             <span>Loading waveform…</span>
           </div>
         ) : (
-          <Waveform
-            waveform={displayWaveform}
-            durationMs={track.durationMs}
-            startMs={track.startMs}
-            endMs={track.endMs}
-            onStartChange={(ms) => updateTrack(track.id, { startMs: Math.round(ms) })}
-            onEndChange={(ms) => updateTrack(track.id, { endMs: Math.round(ms) })}
-            onSeek={handleSeek}
-            playheadMs={playheadMs}
-          />
+          <>
+            <Waveform
+              waveform={displayWaveform}
+              durationMs={track.durationMs}
+              startMs={track.startMs}
+              endMs={track.endMs}
+              onStartChange={(ms) => updateTrack(track.id, { startMs: Math.round(ms) })}
+              onEndChange={(ms) => updateTrack(track.id, { endMs: Math.round(ms) })}
+              onSeek={handleSeek}
+              playheadMs={playheadMs}
+            />
+            <p className="text-gray-600 text-xs mt-1 text-right select-none">Waveform approximate</p>
+          </>
         )}
       </div>
 

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { startPlayback, pausePlayback } from '../../services/spotify/api';
 import { getValidToken } from '../../services/spotify/auth';
+import { waitForDevice } from '../../services/spotify/playerUtils';
 import { usePreviewPlayer } from '../../contexts/PreviewPlayerContext';
 
 interface TransitionPreviewButtonProps {
@@ -21,7 +22,7 @@ export default function TransitionPreviewButton({
   crossfadeOutMs,
 }: TransitionPreviewButtonProps) {
   const accountA = useAppStore((s) => s.accountA);
-  const { deviceId, ready } = usePreviewPlayer();
+  const { deviceId, ready, proxy } = usePreviewPlayer();
 
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export default function TransitionPreviewButton({
   const seekMs = Math.max(0, endMs - crossfadeOutMs - 2000);
 
   const handleClick = useCallback(async () => {
-    if (!accountA || !deviceId) return;
+    if (!accountA || !proxy) return;
 
     setError(null);
 
@@ -49,7 +50,8 @@ export default function TransitionPreviewButton({
       }
       try {
         const token = await getValidToken(accountA);
-        await pausePlayback(deviceId, token);
+        const liveDeviceId = await waitForDevice(proxy);
+        await pausePlayback(liveDeviceId, token);
       } catch {
         // best-effort stop
       }
@@ -59,7 +61,8 @@ export default function TransitionPreviewButton({
 
     try {
       const token = await getValidToken(accountA);
-      await startPlayback(deviceId, [spotifyUri], seekMs, token);
+      const liveDeviceId = await waitForDevice(proxy);
+      await startPlayback(liveDeviceId, [spotifyUri], seekMs, token);
       setPlaying(true);
 
       // Auto-stop the playing indicator after the crossfade window + 4s buffer
@@ -70,7 +73,7 @@ export default function TransitionPreviewButton({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Playback failed');
     }
-  }, [accountA, deviceId, spotifyUri, seekMs, playing, crossfadeOutMs]);
+  }, [accountA, proxy, spotifyUri, seekMs, playing, crossfadeOutMs]);
 
   // --- Render states ---
 
@@ -89,7 +92,7 @@ export default function TransitionPreviewButton({
     );
   }
 
-  if (!ready || !deviceId) {
+  if (!ready || !deviceId || !proxy) {
     return (
       <div className="flex flex-col gap-1">
         <button

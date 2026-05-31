@@ -30,7 +30,7 @@ export default function TrimHandle({
 
   return (
     <div
-      className="absolute top-0 bottom-0 flex flex-col items-center cursor-ew-resize select-none z-10"
+      className="absolute top-0 bottom-0 flex flex-col items-center cursor-ew-resize select-none z-10 min-w-[44px] justify-start pt-1"
       style={{ left: `${position * 100}%`, transform: 'translateX(-50%)' }}
       tabIndex={0}
       onMouseDown={onMouseDown}
@@ -38,9 +38,9 @@ export default function TrimHandle({
       onKeyDown={onKeyDown}
       aria-label={`${color === 'green' ? 'Start' : 'End'} trim handle at ${label}`}
     >
-      {/* Drag tab */}
+      {/* Drag tab — min 44px tall touch target on mobile */}
       <div
-        className={`${colors.tab} rounded px-1.5 py-0.5 text-xs font-mono font-semibold whitespace-nowrap shadow mb-0.5 select-none`}
+        className={`${colors.tab} rounded px-2 py-1.5 text-xs font-mono font-semibold whitespace-nowrap shadow mb-0.5 select-none min-h-[32px] flex items-center justify-center min-w-[40px]`}
       >
         {label}
       </div>

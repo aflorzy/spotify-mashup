@@ -25,7 +25,7 @@ export default function AccountStatusBadge({ account, label }: Props) {
       <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
       <div className="flex items-center gap-1.5">
         <span className={`inline-block h-2 w-2 rounded-full ${dotColor} shrink-0`} />
-        <span className="text-sm text-gray-300 truncate max-w-[120px]">{statusText}</span>
+        <span className="hidden md:block text-sm text-gray-300 truncate max-w-[120px]">{statusText}</span>
       </div>
     </div>
   );
