@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMixStore } from '../store/useMixStore';
-import { saveMix } from '../services/storage/db';
+import { saveMix, getMix } from '../services/storage/db';
 import Button from '../components/common/Button';
 import TrackSearchPanel from '../components/builder/TrackSearchPanel';
 import TrackList from '../components/builder/TrackList';
@@ -9,18 +9,29 @@ import PlaylistImporter from '../components/builder/PlaylistImporter';
 
 export default function MixBuilderPage() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
   const currentMix = useMixStore((s) => s.currentMix);
   const createMix = useMixStore((s) => s.createMix);
   const updateMixName = useMixStore((s) => s.updateMixName);
+  const setMix = useMixStore((s) => s.setMix);
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Always start fresh — this page is exclusively /mix/new
   useEffect(() => {
-    createMix('New Mix');
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+    if (id) {
+      // Loading existing mix — check if already in store first
+      const current = useMixStore.getState().currentMix;
+      if (current?.id === id) return;
+      getMix(id).then((mix) => {
+        if (mix) setMix(mix);
+        else createMix('New Mix');
+      }).catch(() => createMix('New Mix'));
+    } else {
+      createMix('New Mix');
+    }
+  }, [id]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save whenever the mix changes
   useEffect(() => {

@@ -35,6 +35,8 @@ export default function MixListPage() {
   const [mixes, setMixes] = useState<Mix[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,6 +119,27 @@ export default function MixListPage() {
     }
   }
 
+  function startRename(mix: Mix, e: React.MouseEvent) {
+    e.stopPropagation();
+    setRenamingId(mix.id);
+    setRenameInput(mix.name);
+  }
+
+  async function commitRename(mix: Mix) {
+    const trimmed = renameInput.trim();
+    if (trimmed && trimmed !== mix.name) {
+      const updated = { ...mix, name: trimmed, updatedAt: Date.now() };
+      await saveMix(updated);
+      await loadMixes();
+    }
+    setRenamingId(null);
+  }
+
+  function handleRenameKeyDown(e: React.KeyboardEvent, mix: Mix) {
+    if (e.key === 'Enter') commitRename(mix);
+    if (e.key === 'Escape') setRenamingId(null);
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       {/* Hidden file input */}
@@ -181,13 +204,37 @@ export default function MixListPage() {
                 className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center gap-4"
               >
                 {/* Info — clicking the name navigates to the editor */}
-                <div
-                  className="flex-1 min-w-0 cursor-pointer group"
-                  onClick={() => navigate(`/mix/${mix.id}/edit`)}
-                >
-                  <h2 className="text-white font-semibold text-lg truncate group-hover:text-green-400 transition-colors">
-                    {mix.name}
-                  </h2>
+                <div className="flex-1 min-w-0">
+                  {renamingId === mix.id ? (
+                    <input
+                      type="text"
+                      value={renameInput}
+                      autoFocus
+                      onChange={(e) => setRenameInput(e.target.value)}
+                      onBlur={() => commitRename(mix)}
+                      onKeyDown={(e) => handleRenameKeyDown(e, mix)}
+                      aria-label="Mix name"
+                      className="bg-gray-800 border border-green-500 rounded-lg px-2 py-1 text-white font-semibold text-lg focus:outline-none w-full"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <div
+                      className="flex items-center gap-1.5 group cursor-pointer"
+                      onClick={() => navigate(`/mix/${mix.id}/edit`)}
+                    >
+                      <h2 className="text-white font-semibold text-lg truncate group-hover:text-green-400 transition-colors">
+                        {mix.name}
+                      </h2>
+                      <button
+                        onClick={(e) => startRename(mix, e)}
+                        className="text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-sm hover:text-gray-300"
+                        title="Rename mix"
+                        aria-label="Rename mix"
+                      >
+                        &#9999;
+                      </button>
+                    </div>
+                  )}
                   <p className="text-gray-500 text-sm mt-0.5">
                     {mix.tracks.length} {mix.tracks.length === 1 ? 'track' : 'tracks'}
                     {runtime > 0 && <> · {msToDisplay(runtime)}</>}

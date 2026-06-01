@@ -18,6 +18,7 @@ export default function Router() {
           <Route path="/" element={<ErrorBoundary><HomePage /></ErrorBoundary>} />
           <Route path="/mix/new" element={<ErrorBoundary><MixBuilderPage /></ErrorBoundary>} />
           <Route path="/mix/:id/edit" element={<ErrorBoundary><MixEditorPage /></ErrorBoundary>} />
+          <Route path="/mix/:id/build" element={<ErrorBoundary><MixBuilderPage /></ErrorBoundary>} />
           <Route path="/mixes" element={<ErrorBoundary><MixListPage /></ErrorBoundary>} />
         </Route>
       </Routes>
