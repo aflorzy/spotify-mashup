@@ -13,9 +13,14 @@ export default function MixEditorPage() {
   const currentMix = useMixStore((s) => s.currentMix);
   const setMix = useMixStore((s) => s.setMix);
 
+  const updateMixName = useMixStore((s) => s.updateMixName);
+
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Load mix on mount if not already loaded
   useEffect(() => {
@@ -47,6 +52,30 @@ export default function MixEditorPage() {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, [currentMix]);
+
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingName]);
+
+  function startEditName() {
+    if (!currentMix) return;
+    setNameInput(currentMix.name);
+    setEditingName(true);
+  }
+
+  function commitName() {
+    const trimmed = nameInput.trim();
+    if (trimmed) updateMixName(trimmed);
+    setEditingName(false);
+  }
+
+  function handleNameKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') commitName();
+    if (e.key === 'Escape') setEditingName(false);
+  }
 
   const handleSave = async () => {
     if (!currentMix) return;
@@ -108,13 +137,37 @@ export default function MixEditorPage() {
           >
             ←
           </button>
-          <h1 className="text-xl font-bold text-white truncate">{currentMix.name}</h1>
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={handleNameKeyDown}
+              aria-label="Mix name"
+              className="bg-gray-800 border border-green-500 rounded-lg px-2 py-1 text-white font-bold text-xl focus:outline-none min-w-0 w-full max-w-xs"
+            />
+          ) : (
+            <div className="flex items-center gap-1.5 group cursor-pointer min-w-0" onClick={startEditName} title="Click to rename">
+              <h1 className="text-xl font-bold text-white truncate">{currentMix.name}</h1>
+              <span className="text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-base" aria-label="Rename mix">&#9999;</span>
+            </div>
+          )}
           <span className="text-xs text-gray-500 shrink-0">
             {currentMix.tracks.length} track{currentMix.tracks.length !== 1 ? 's' : ''}
           </span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/mix/${currentMix.id}/build`)}
+            title="Add more songs to this mix"
+          >
+            + Add songs
+          </Button>
           <Button
             variant="ghost"
             size="sm"

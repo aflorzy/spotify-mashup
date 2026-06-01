@@ -31,8 +31,7 @@ interface AccountCardProps {
 }
 
 function AccountCard({ role, account, description, onConnect, onDisconnect }: AccountCardProps) {
-  const isConnected = account !== null;
-  const isReady = account?.deviceId !== null;
+  const isConnected = account !== null && !!account.accessToken && account.expiresAt > Date.now();
 
   let dotColor: string;
   let statusText: string;
@@ -40,12 +39,13 @@ function AccountCard({ role, account, description, onConnect, onDisconnect }: Ac
   if (!account) {
     dotColor = 'bg-gray-600';
     statusText = 'Not connected';
-  } else if (isReady) {
+  } else if (isConnected) {
     dotColor = 'bg-green-400';
     statusText = account.displayName;
   } else {
+    // Account exists but token is expired
     dotColor = 'bg-yellow-400';
-    statusText = `${account.displayName} (connecting…)`;
+    statusText = `${account.displayName} (token expired)`;
   }
 
   return (
@@ -63,7 +63,7 @@ function AccountCard({ role, account, description, onConnect, onDisconnect }: Ac
 
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-gray-300 truncate">{statusText}</span>
-        {isConnected ? (
+        {account !== null ? (
           <Button size="sm" variant="ghost" onClick={onDisconnect} className="shrink-0 text-xs">
             Disconnect
           </Button>
@@ -83,10 +83,11 @@ export default function HomePage() {
   const accountB = useAppStore((s) => s.accountB);
   const setAccountA = useAppStore((s) => s.setAccountA);
   const setAccountB = useAppStore((s) => s.setAccountB);
+  const authError = useAppStore((s) => s.authError);
 
   async function handleConnectA() {
     const verifier = await generateCodeVerifier();
-    const url = await buildAuthUrl('A', verifier);
+    const url = await buildAuthUrl('A', verifier, false, !!authError);
     sessionStorage.setItem('mashup_auth_return', '/');
     window.location.href = url;
   }
@@ -94,7 +95,7 @@ export default function HomePage() {
   async function handleConnectB() {
     const verifier = await generateCodeVerifier();
     // popup: false since we redirect; show_dialog is already set in buildAuthUrl for role B
-    const url = await buildAuthUrl('B', verifier);
+    const url = await buildAuthUrl('B', verifier, false, !!authError);
     sessionStorage.setItem('mashup_auth_return', '/');
     window.location.href = url;
   }

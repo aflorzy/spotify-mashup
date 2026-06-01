@@ -23,21 +23,29 @@ export async function waitForDevice(
  * Polls GET /me/player/devices until the given deviceId appears in Spotify's
  * backend. The SDK `ready` event fires before backend registration completes,
  * so this gate prevents the 404 "Device not found" race on PUT /play.
+ * Uses exponential backoff to avoid polling storms when multiple callers fire.
  */
 export async function waitForDeviceVisible(
   deviceId: string,
   token: string,
-  timeoutMs = 15000
+  maxAttempts = 5
 ): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
+  const delays = [500, 1000, 2000, 4000, 8000];
+  for (let i = 0; i < maxAttempts; i++) {
+    console.debug(
+      `[MashUp] devices poll attempt ${i + 1}/${maxAttempts}`,
+      'device:', deviceId,
+      'token:', token.slice(0, 10) + '…'
+    );
     try {
       const data = await getPlayerDevices(token);
       if (data.devices?.some((d) => d.id === deviceId)) return;
     } catch {
-      // ignore transient errors; keep polling
+      // transient error — retry
     }
-    await new Promise<void>((r) => setTimeout(r, 500));
+    if (i < maxAttempts - 1) {
+      await new Promise<void>((r) => setTimeout(r, delays[i]));
+    }
   }
-  throw new Error(`Device ${deviceId} not visible in Spotify API after ${timeoutMs}ms`);
+  throw new Error(`Device ${deviceId} not visible after ${maxAttempts} polling attempts`);
 }
