@@ -5,6 +5,7 @@ import { getMix, saveMix } from '../services/storage/db';
 import MixEditorStrip from '../components/editor/MixEditorStrip';
 import Button from '../components/common/Button';
 import Spinner from '../components/common/Spinner';
+import { PreviewPlayerProvider } from '../contexts/PreviewPlayerContext';
 
 export default function MixEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -193,26 +194,28 @@ export default function MixEditorPage() {
         </div>
       </div>
 
-      {currentMix.tracks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-4 text-gray-500 border border-dashed border-gray-700 rounded-xl">
-          <p>No tracks in this mix.</p>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/mix/new')}>
-            Go back to the builder
-          </Button>
-        </div>
-        ) : (
-        <div className="flex flex-col gap-3">
-          {currentMix.tracks.map((track, index) => (
-            <MixEditorStrip
-              key={track.id}
-              track={track}
-              index={index}
-              isLast={index === currentMix.tracks.length - 1}
-              nextTrack={currentMix.tracks[index + 1]}
-            />
-          ))}
-        </div>
-        )}
+      <PreviewPlayerProvider>
+        {currentMix.tracks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-gray-500 border border-dashed border-gray-700 rounded-xl">
+            <p>No tracks in this mix.</p>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/mix/new')}>
+              Go back to the builder
+            </Button>
+          </div>
+          ) : (
+          <div className="flex flex-col gap-3">
+            {currentMix.tracks.map((track, index) => (
+              <MixEditorStrip
+                key={track.id}
+                track={track}
+                index={index}
+                isLast={index === currentMix.tracks.length - 1}
+                nextTrack={currentMix.tracks[index + 1]}
+              />
+            ))}
+          </div>
+          )}
+      </PreviewPlayerProvider>
     </div>
   );
 }
