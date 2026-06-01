@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { startPlayback, pausePlayback } from '../../services/spotify/api';
+import { pausePlayback } from '../../services/spotify/api';
 import { getValidToken } from '../../services/spotify/auth';
-import { waitForDevice, waitForDeviceVisible } from '../../services/spotify/playerUtils';
+import { waitForDevice, playWithRetry } from '../../services/spotify/playerUtils';
 import { usePreviewPlayer } from '../../contexts/PreviewPlayerContext';
 
 interface TransitionPreviewButtonProps {
@@ -68,9 +68,8 @@ export default function TransitionPreviewButton({
       const token = await getValidToken(accountA);
       const liveDeviceId = await waitForDevice(proxy);
       setApiConnecting(true);
-      await waitForDeviceVisible(liveDeviceId, token);
+      await playWithRetry(liveDeviceId, [spotifyUri], seekMs, token);
       setApiConnecting(false);
-      await startPlayback(liveDeviceId, [spotifyUri], seekMs, token);
       setPlaying(true);
 
       // Auto-stop the playing indicator after the crossfade window + 4s buffer

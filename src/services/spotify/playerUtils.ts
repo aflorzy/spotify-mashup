@@ -1,5 +1,5 @@
 import type { IframePlayerProxy } from './IframePlayerProxy';
-import { getPlayerDevices } from './api';
+import { startPlayback } from './api';
 
 export async function waitForDevice(
   proxy: IframePlayerProxy,
@@ -20,32 +20,28 @@ export async function waitForDevice(
 }
 
 /**
- * Polls GET /me/player/devices until the given deviceId appears in Spotify's
- * backend. The SDK `ready` event fires before backend registration completes,
- * so this gate prevents the 404 "Device not found" race on PUT /play.
- * Uses exponential backoff to avoid polling storms when multiple callers fire.
+ * Issues PUT /play and retries on 404 with exponential backoff.
+ * The SDK `ready` event fires before the device is visible to the REST API,
+ * so the first call may 404. Direct retry is more reliable than polling
+ * GET /me/player/devices, which can lag 10-20s for newly-registered SDK devices.
  */
-export async function waitForDeviceVisible(
+export async function playWithRetry(
   deviceId: string,
+  uris: string[],
+  positionMs: number,
   token: string,
-  maxAttempts = 5
+  maxAttempts = 8,
 ): Promise<void> {
-  const delays = [500, 1000, 2000, 4000, 8000];
+  const delays = [500, 1000, 2000, 4000, 4000, 4000, 4000];
   for (let i = 0; i < maxAttempts; i++) {
-    console.debug(
-      `[MashUp] devices poll attempt ${i + 1}/${maxAttempts}`,
-      'device:', deviceId,
-      'token:', token.slice(0, 10) + '…'
-    );
     try {
-      const data = await getPlayerDevices(token);
-      if (data.devices?.some((d) => d.id === deviceId)) return;
-    } catch {
-      // transient error — retry
-    }
-    if (i < maxAttempts - 1) {
+      await startPlayback(deviceId, uris, positionMs, token);
+      return;
+    } catch (e) {
+      const is404 = e instanceof Error && e.message.includes('404');
+      if (!is404 || i === maxAttempts - 1) throw e;
+      console.debug(`[MashUp] PUT /play 404 attempt ${i + 1}/${maxAttempts}, retrying in ${delays[i]}ms`);
       await new Promise<void>((r) => setTimeout(r, delays[i]));
     }
   }
-  throw new Error(`Device ${deviceId} not visible after ${maxAttempts} polling attempts`);
 }

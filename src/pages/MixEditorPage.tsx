@@ -5,7 +5,6 @@ import { getMix, saveMix } from '../services/storage/db';
 import MixEditorStrip from '../components/editor/MixEditorStrip';
 import Button from '../components/common/Button';
 import Spinner from '../components/common/Spinner';
-import { PreviewPlayerProvider } from '../contexts/PreviewPlayerContext';
 
 export default function MixEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -194,11 +193,7 @@ export default function MixEditorPage() {
         </div>
       </div>
 
-      {/* Track list — wrapped in PreviewPlayerProvider so each strip can
-          use the shared preview player. Provider only initialises the SDK
-          iframe when accountA is connected. */}
-      <PreviewPlayerProvider>
-        {currentMix.tracks.length === 0 ? (
+      {currentMix.tracks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4 text-gray-500 border border-dashed border-gray-700 rounded-xl">
             <p>No tracks in this mix.</p>
             <Button variant="ghost" size="sm" onClick={() => navigate('/mix/new')}>
@@ -218,7 +213,6 @@ export default function MixEditorPage() {
             ))}
           </div>
         )}
-      </PreviewPlayerProvider>
     </div>
   );
 }

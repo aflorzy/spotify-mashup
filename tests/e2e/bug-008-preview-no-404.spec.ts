@@ -1,9 +1,8 @@
 import { test, expect } from '../../playwright/fixtures';
 
-// BUG-008: A race condition in TransitionPreviewButton caused startPlayback()
-// to be called before Spotify's REST API knew the device existed, producing a
-// 404 "Device not found" response. waitForDeviceVisible() now polls until the
-// device is visible to the API before issuing the play command.
+// BUG-008: The Spotify SDK fires `ready` before the device is visible in the
+// REST API. playWithRetry() issues PUT /play directly and retries on 404 with
+// exponential backoff — more reliable than polling GET /me/player/devices.
 
 test('clicking Preview transition does not produce a 404 or Device not found console error', async ({ page }) => {
   // This test involves real Spotify SDK init — allow 90s total

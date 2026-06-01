@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import NavBar from './NavBar';
 import { useAppStore } from '../../store/useAppStore';
+import { PreviewPlayerProvider } from '../../contexts/PreviewPlayerContext';
 
 export default function AppShell() {
   const authError = useAppStore((s) => s.authError);
@@ -31,7 +32,9 @@ export default function AppShell() {
         </div>
       )}
       <main className="flex-1">
-        <Outlet />
+        <PreviewPlayerProvider>
+          <Outlet />
+        </PreviewPlayerProvider>
       </main>
     </div>
   );
