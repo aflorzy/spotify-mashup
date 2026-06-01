@@ -67,12 +67,61 @@ function updateEnvFile(updates: Record<string, string>): void {
   fs.writeFileSync(envPath, content, 'utf-8');
 }
 
+/**
+ * Try to refresh the token. If the refresh token is revoked but the existing
+ * access token is still valid, fall back to using it (avoids blocking tests
+ * when the refresh token has been burned mid-session by a previous run).
+ */
+async function refreshOrFallback(
+  refreshTok: string,
+  existingAccessToken: string,
+  clientId: string,
+  label: string
+): Promise<RefreshResult> {
+  try {
+    return await refreshToken(refreshTok, clientId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Check if the existing access token is still usable
+    const ctx = await request.newContext();
+    const probe = await ctx.get('https://api.spotify.com/v1/me', {
+      headers: { Authorization: `Bearer ${existingAccessToken}` },
+    });
+    await ctx.dispose();
+    if (probe.ok()) {
+      console.warn(
+        `[globalSetup] Token ${label} refresh failed (${msg}), ` +
+        `but existing access token is still valid -- using it as-is.`
+      );
+      return {
+        accessToken: existingAccessToken,
+        refreshToken: refreshTok, // keep stale; will need manual reset
+        expiresIn: 3600, // assume 1 h remaining
+      };
+    }
+    // Both refresh and existing token are bad -- hard fail
+    throw new Error(
+      `Token ${label} refresh failed AND existing access token is invalid: ${msg}`
+    );
+  }
+}
+
 export default async function globalSetup() {
   const clientId = process.env.VITE_SPOTIFY_CLIENT_ID!;
 
   const [resultA, resultB] = await Promise.all([
-    refreshToken(process.env.SPOTIFY_REFRESH_TOKEN_A!, clientId),
-    refreshToken(process.env.SPOTIFY_REFRESH_TOKEN_B!, clientId),
+    refreshOrFallback(
+      process.env.SPOTIFY_REFRESH_TOKEN_A!,
+      process.env.SPOTIFY_ACCESS_TOKEN_A!,
+      clientId,
+      'A'
+    ),
+    refreshOrFallback(
+      process.env.SPOTIFY_REFRESH_TOKEN_B!,
+      process.env.SPOTIFY_ACCESS_TOKEN_B!,
+      clientId,
+      'B'
+    ),
   ]);
 
   const [nameA, nameB] = await Promise.all([
@@ -96,7 +145,6 @@ export default async function globalSetup() {
   process.env.SPOTIFY_FRESH_EXPIRES_B = String(Date.now() + resultB.expiresIn * 1000);
   process.env.SPOTIFY_DISPLAY_NAME_B = nameB;
 
-  console.log(`[globalSetup] Token A refreshed for: ${nameA}`);
-  console.log(`[globalSetup] Token B refreshed for: ${nameB}`);
-  console.log(`[globalSetup] Rotated tokens written back to .env.test`);
+  console.log(`[globalSetup] Token A resolved for: ${nameA}`);
+  console.log(`[globalSetup] Token B resolved for: ${nameB}`);
 }
