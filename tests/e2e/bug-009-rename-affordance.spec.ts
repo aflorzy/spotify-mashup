@@ -1,25 +1,47 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
+
+/** Seed a mix into IndexedDB in the app's origin context.
+ *  Must be called after page.goto() so we are running in the correct origin.
+ *  Handles both cases: DB not yet created (runs onupgradeneeded) and DB already open by the app.
+ */
+async function seedMix(page: Page, mix: Record<string, unknown>) {
+  await page.evaluate((m) => {
+    return new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('mashup-db', 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('mixes')) {
+          const store = db.createObjectStore('mixes', { keyPath: 'id' });
+          store.createIndex('updatedAt', 'updatedAt');
+        }
+        if (!db.objectStoreNames.contains('waveforms')) {
+          db.createObjectStore('waveforms', { keyPath: 'spotifyTrackId' });
+        }
+      };
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction('mixes', 'readwrite');
+        tx.objectStore('mixes').put(m);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }, mix);
+}
 
 base.describe('BUG-009 — mix name rename affordance', () => {
   base.test('pencil icon visible on hover and rename works in MixEditorPage', async ({ page }) => {
-    // Seed IndexedDB with a mix so we can navigate directly to the editor
-    await page.addInitScript(() => {
-      // Open IndexedDB and insert a test mix
-      const MIX_ID = 'test-mix-bug009';
-      const openReq = indexedDB.open('mashup-db', 1);
-      openReq.onsuccess = () => {
-        const db = openReq.result;
-        // Only insert if the object store exists
-        if (!db.objectStoreNames.contains('mixes')) return;
-        const tx = db.transaction('mixes', 'readwrite');
-        tx.objectStore('mixes').put({
-          id: MIX_ID,
-          name: 'Original Mix Name',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          tracks: [],
-        });
-      };
+    // Navigate to / first so we are in the app's origin and IndexedDB is available
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await seedMix(page, {
+      id: 'test-mix-bug009',
+      name: 'Original Mix Name',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      tracks: [],
     });
 
     await page.goto('/mix/test-mix-bug009/edit');
@@ -47,20 +69,16 @@ base.describe('BUG-009 — mix name rename affordance', () => {
   });
 
   base.test('Escape cancels rename without saving', async ({ page }) => {
-    await page.addInitScript(() => {
-      const openReq = indexedDB.open('mashup-db', 1);
-      openReq.onsuccess = () => {
-        const db = openReq.result;
-        if (!db.objectStoreNames.contains('mixes')) return;
-        const tx = db.transaction('mixes', 'readwrite');
-        tx.objectStore('mixes').put({
-          id: 'test-mix-bug009b',
-          name: 'Keep This Name',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          tracks: [],
-        });
-      };
+    // Navigate to / first so we are in the app's origin and IndexedDB is available
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await seedMix(page, {
+      id: 'test-mix-bug009b',
+      name: 'Keep This Name',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      tracks: [],
     });
 
     await page.goto('/mix/test-mix-bug009b/edit');
