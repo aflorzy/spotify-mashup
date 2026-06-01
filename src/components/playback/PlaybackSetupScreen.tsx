@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { buildAuthUrl, generateCodeVerifier, saveAccount } from '../../services/spotify/auth';
+import { buildAuthUrl, generateCodeVerifier, saveAccount, REQUIRED_SCOPES_VERSION } from '../../services/spotify/auth';
 import type { PlayerAccount } from '../../types/mix';
 import AccountStatusBadge from '../common/AccountStatusBadge';
 import Button from '../common/Button';
@@ -62,7 +62,7 @@ export default function PlaybackSetupScreen({
       if (event.data?.type !== 'mashup_auth_complete') return;
       const account = event.data.account as PlayerAccount;
       setAccountB(account);
-      saveAccount(account);
+      saveAccount({ ...account, scopesVersion: REQUIRED_SCOPES_VERSION });
       popupRef.current?.close();
       popupRef.current = null;
     }

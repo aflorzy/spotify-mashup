@@ -102,7 +102,7 @@ export async function getValidToken(account: PlayerAccount): Promise<string> {
 export function saveAccount(account: PlayerAccount): void {
   sessionStorage.setItem(
     `mashup_account_${account.role}`,
-    JSON.stringify({ ...account, scopesVersion: REQUIRED_SCOPES_VERSION }),
+    JSON.stringify(account),
   );
 }
 

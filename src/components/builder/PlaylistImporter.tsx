@@ -89,8 +89,8 @@ export default function PlaylistImporter() {
         // playlist
         const result = await getPlaylistTracks(parsed.id, token);
         const tracks = result.items
-          .map((item) => item.track)
-          .filter((t): t is SpotifyTrack => t !== null);
+          .map((i) => i.item ?? i.track ?? null)
+          .filter((t): t is SpotifyTrack => t !== null && 'duration_ms' in t);
 
         for (const track of tracks) {
           addTrack(spotifyTrackToMixTrack(track));

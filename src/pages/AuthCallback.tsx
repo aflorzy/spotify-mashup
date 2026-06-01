@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { exchangeCodeForTokens, saveAccount } from '../services/spotify/auth';
+import { exchangeCodeForTokens, saveAccount, REQUIRED_SCOPES_VERSION } from '../services/spotify/auth';
 import { getUserProfile } from '../services/spotify/api';
 import { useAppStore } from '../store/useAppStore';
 import type { PlayerAccount } from '../types/mix';
@@ -62,7 +62,7 @@ export default function AuthCallback() {
         } else {
           setAccountB(account);
         }
-        saveAccount(account);
+        saveAccount({ ...account, scopesVersion: REQUIRED_SCOPES_VERSION });
 
         const returnTo = sessionStorage.getItem('mashup_auth_return') || '/';
         sessionStorage.removeItem('mashup_auth_return');

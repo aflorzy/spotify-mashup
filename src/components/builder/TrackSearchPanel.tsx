@@ -88,6 +88,7 @@ export default function TrackSearchPanel() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null);
   const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrack[]>([]);
   const [playlistTracksLoading, setPlaylistTracksLoading] = useState(false);
+  const [playlistTracksError, setPlaylistTracksError] = useState<string | null>(null);
 
   const doSearch = useCallback(
     debounce(async (q: string) => {
@@ -142,14 +143,21 @@ export default function TrackSearchPanel() {
     if (!accountA) return;
     setSelectedPlaylist(playlist);
     setPlaylistTracksLoading(true);
+    setPlaylistTracksError(null);
     try {
       const token = await getValidToken(accountA);
       const result = await getPlaylistTracks(playlist.id, token);
       const tracks = result.items
-        .map((item) => item.track)
-        .filter((t): t is SpotifyTrack => t !== null);
+        .map((i) => i.item ?? i.track ?? null)
+        .filter((t): t is SpotifyTrack => t !== null && 'duration_ms' in t);
       setPlaylistTracks(tracks);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      setPlaylistTracksError(
+        msg.includes('403')
+          ? "Can't load tracks — you can only import playlists you own."
+          : 'Failed to load tracks'
+      );
       setPlaylistTracks([]);
     } finally {
       setPlaylistTracksLoading(false);
@@ -277,7 +285,7 @@ export default function TrackSearchPanel() {
                   )}
                   <div className="min-w-0">
                     <p className="text-white text-sm font-medium truncate">{pl.name}</p>
-                    <p className="text-gray-500 text-xs">{pl.tracks?.total ?? 0} tracks</p>
+                    <p className="text-gray-500 text-xs">{pl.items?.total ?? 0} tracks</p>
                   </div>
                 </button>
               ))}
@@ -292,7 +300,7 @@ export default function TrackSearchPanel() {
             <>
               <div className="flex items-center gap-2 mb-3">
                 <button
-                  onClick={() => { setSelectedPlaylist(null); setPlaylistTracks([]); }}
+                  onClick={() => { setSelectedPlaylist(null); setPlaylistTracks([]); setPlaylistTracksError(null); }}
                   className="text-gray-400 hover:text-white transition-colors text-sm flex items-center gap-1"
                 >
                   ← Back
@@ -306,6 +314,8 @@ export default function TrackSearchPanel() {
                 <div className="flex justify-center py-8">
                   <Spinner size="md" />
                 </div>
+              ) : playlistTracksError ? (
+                <p className="text-red-400 text-xs px-1 py-4">{playlistTracksError}</p>
               ) : (
                 <div className="flex-1 overflow-y-auto">
                   {playlistTracks.map((track) => (

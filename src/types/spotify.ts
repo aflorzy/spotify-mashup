@@ -14,7 +14,8 @@ export interface SpotifyPlaylist {
   id: string;
   name: string;
   images: { url: string }[];
-  tracks: { total: number };
+  items: { total: number };
+  tracks?: { total: number }; // deprecated by Spotify, use items.total
   owner: { display_name: string };
 }
 
@@ -49,7 +50,7 @@ export interface SpotifySearchResult {
 }
 
 export interface SpotifyPlaylistTracksResult {
-  items: { track: SpotifyTrack | null }[];
+  items: { item: SpotifyTrack | null; track?: SpotifyTrack | null }[];
   next: string | null;
   total: number;
 }

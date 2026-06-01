@@ -38,7 +38,16 @@ export async function getUserPlaylists(token: string): Promise<SpotifyPlaylist[]
 }
 
 export async function getPlaylistTracks(playlistId: string, token: string): Promise<SpotifyPlaylistTracksResult> {
-  return apiFetch<SpotifyPlaylistTracksResult>(`/playlists/${playlistId}/tracks?limit=100`, token);
+  const allItems: SpotifyPlaylistTracksResult['items'] = [];
+  let url: string | null = `/playlists/${playlistId}/items?limit=50`;
+  let total = 0;
+  while (url) {
+    const page = await apiFetch<SpotifyPlaylistTracksResult>(url, token);
+    allItems.push(...page.items);
+    total = page.total;
+    url = page.next ? page.next.replace(BASE, '') : null;
+  }
+  return { items: allItems, next: null, total };
 }
 
 export async function getAudioFeatures(trackId: string, token: string): Promise<SpotifyAudioFeatures> {
